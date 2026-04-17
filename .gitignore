@@ -1,0 +1,33 @@
+### Java & Build Tools ###
+/target/
+!.mvn/wrapper/maven-wrapper.jar
+!gradle/wrapper/gradle-wrapper.jar
+build/
+.gradle/
+bin/
+out/
+
+### IDEs (IntelliJ, Eclipse, VS Code) ###
+.idea/
+*.iml
+*.iws
+.project
+.classpath
+.settings/
+.factorypath
+.vscode/
+
+### Log Files ###
+*.log
+logs/
+
+### OS specific files ###
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+
+### Configurações Sensíveis (Opcional, mas recomendado) ###
+# Se você usa arquivos externos para senhas ou chaves de API
+.env
+application-local.properties
