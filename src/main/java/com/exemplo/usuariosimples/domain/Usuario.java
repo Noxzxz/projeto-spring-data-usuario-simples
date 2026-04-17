@@ -7,12 +7,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-/**
- * Classe de dominio anotada como Entity.
- *
- * Nesta primeira versao, ela ja e suficiente para o Hibernate/JPA
- * gerar a tabela automaticamente no H2, mesmo sem Repository.
- */
 @Entity
 @Table(name = "usuarios")
 public class Usuario {
@@ -24,17 +18,29 @@ public class Usuario {
     @Column(nullable = false, length = 100)
     private String nome;
 
-    @Column(nullable = false, unique = true, length = 120)
+    @Column(nullable = false,unique = true, length = 120)
     private String email;
 
+    @Column(nullable = false,length = 21)
+    private String senha;
+
+    @Column(nullable = false)
+    private boolean ativo;
+
+    // Construtor vazio (obrigatório para JPA)
     public Usuario() {
-        // Construtor padrao exigido pela JPA.
     }
 
-    public Usuario(String nome, String email) {
+    // Construtor completo
+    public Usuario(Long id, String nome, String email, String senha, boolean ativo) {
+        this.id = id;
         this.nome = nome;
         this.email = email;
+        this.senha = senha;
+        this.ativo = ativo;
     }
+
+    // Getters e Setters
 
     public Long getId() {
         return id;
@@ -59,4 +65,21 @@ public class Usuario {
     public void setEmail(String email) {
         this.email = email;
     }
+
+    public String getSenha() {
+        return senha;
+    }
+
+    public void setSenha(String senha) {
+        this.senha = senha;
+    }
+
+    public boolean isAtivo() {
+        return ativo;
+    }
+
+    public void setAtivo(boolean ativo) {
+        this.ativo = ativo;
+    }
 }
+
