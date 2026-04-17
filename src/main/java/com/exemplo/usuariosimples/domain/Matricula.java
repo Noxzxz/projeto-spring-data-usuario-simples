@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 @Entity
 @Table(name = "matriculas")
 
-public class matriculaEntity {
+public class Matricula {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -19,9 +19,9 @@ public class matriculaEntity {
 
     private String status;
 
-    public matriculaEntity() {}
+    public Matricula() {}
 
-    public matriculaEntity(Long id, Long alunoId, Long cursoId, String dataMatricula, String status) {
+    public Matricula(Long id, Long alunoId, Long cursoId, String dataMatricula, String status) {
         this.id = id;
         this.alunoId = alunoId;
         this.cursoId = cursoId;
