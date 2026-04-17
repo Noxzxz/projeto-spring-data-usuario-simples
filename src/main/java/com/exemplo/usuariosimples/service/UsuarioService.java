@@ -16,7 +16,7 @@ public class UsuarioService {
         this.usuarioRepository = usuarioRepository;
     }
 
-    public Usuario salvar(Usuario usuario) {
+    public Usuario criar(Usuario usuario) {
         return usuarioRepository.save(usuario);
     }
 
