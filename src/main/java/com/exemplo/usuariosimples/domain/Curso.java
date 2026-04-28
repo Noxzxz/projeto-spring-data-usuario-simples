@@ -1,5 +1,7 @@
 package com.exemplo.usuariosimples.domain;
 
+import com.exemplo.usuariosimples.domain.vo.TituloCurso;
+import com.exemplo.usuariosimples.domain.vo.DescricaoCurso;
 import jakarta.persistence.*;
 
 @Entity
@@ -10,30 +12,34 @@ public class Curso {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false,length = 80)
-    private String tituloCurso;
+    @Embedded
+    @AttributeOverride(name = "valor", column = @Column(name = "titulo"))
+    private TituloCurso titulo;
 
-    @Column(nullable = false,length = 180)
-    private String descCurso;
+    @Embedded
+    @AttributeOverride(name = "valor", column = @Column(name = "descricao"))
+    private DescricaoCurso descricao;
 
-    public Curso() {
+    protected Curso() {}
+
+    public Curso(String titulo, String descricao) {
+        this.titulo = new TituloCurso(titulo);
+        this.descricao = new DescricaoCurso(descricao);
     }
 
-    public Curso(Long id, String tituloCurso, String descCurso) {
-        this.tituloCurso = tituloCurso;
-        this.descCurso = descCurso;
+    public Long getId() { return id; }
+
+    public String getTitulo() { return titulo.getValor(); }
+
+    public String getDescricao() {
+        return descricao != null ? descricao.getValor() : null;
     }
 
-    public Long getId() {return  id;}
+    public void setTitulo(String titulo) {
+        this.titulo = new TituloCurso(titulo);
+    }
 
-    public void setId(Long id) {this.id = id;}
-
-    public String getTituloCurso() {return tituloCurso;}
-
-    public void setTituloCurso(String tituloCurso) {this.tituloCurso = tituloCurso;}
-
-    public String getDescCurso() {return descCurso;}
-
-    public void setDescCurso(String descCurso) {this.descCurso = descCurso;}
-
+    public void setDescricao(String descricao) {
+        this.descricao = new DescricaoCurso(descricao);
+    }
 }
