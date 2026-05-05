@@ -1,0 +1,80 @@
+<div class="login-page" role="main">
+  <div class="card" aria-label="Formulário de login">
+
+    <h1 class="titulo">Entrar</h1>
+    <p class="subtitulo">Acesse seu painel editorial profissional.</p>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+
+      <!-- Email -->
+      <div class="campo">
+        <label for="email" class="label">Email</label>
+        <input
+          id="email"
+          type="email"
+          formControlName="email"
+          placeholder="seu@email.com"
+          autocomplete="email"
+          class="input"
+          [class.input--erro]="email.invalid && email.touched"
+          aria-describedby="email-erro"
+        />
+        @if (email.invalid && email.touched) {
+          <span id="email-erro" class="erro-msg" role="alert">
+            @if (email.errors?.['required']) { E-mail é obrigatório. }
+            @else { Insira um e-mail válido. }
+          </span>
+        }
+      </div>
+
+      <!-- Senha -->
+      <div class="campo">
+        <label for="senha" class="label">Senha</label>
+        <input
+          id="senha"
+          type="password"
+          formControlName="senha"
+          placeholder="••••••••"
+          autocomplete="current-password"
+          class="input"
+          [class.input--erro]="senha.invalid && senha.touched"
+          aria-describedby="senha-erro"
+        />
+        @if (senha.invalid && senha.touched) {
+          <span id="senha-erro" class="erro-msg" role="alert">
+            Senha deve ter pelo menos 6 caracteres.
+          </span>
+        }
+      </div>
+
+      <!-- Erro do servidor -->
+      @if (erroServidor()) {
+        <div class="alerta-erro" role="alert" aria-live="assertive">
+          {{ erroServidor() }}
+        </div>
+      }
+
+      <!-- Submit -->
+      <button
+        type="submit"
+        class="btn-primario"
+        [disabled]="carregando()"
+        aria-label="Entrar na plataforma"
+      >
+        @if (carregando()) {
+          <span class="spinner" aria-hidden="true"></span>
+          Entrando…
+        } @else {
+          Entrar
+        }
+      </button>
+
+    </form>
+
+    <div class="rodape-card">
+      <p>Não tem uma conta?</p>
+      <a routerLink="/auth/cadastro" class="btn-secundario">Criar Conta</a>
+    </div>
+
+  </div>
+</div>

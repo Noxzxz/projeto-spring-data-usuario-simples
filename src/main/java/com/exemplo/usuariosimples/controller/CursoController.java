@@ -2,6 +2,7 @@ package com.exemplo.usuariosimples.controller;
 
 import com.exemplo.usuariosimples.dto.CursoRequestDTO;
 import com.exemplo.usuariosimples.dto.CursoResponseDTO;
+import com.exemplo.usuariosimples.dto.PagedResponseDTO;
 import com.exemplo.usuariosimples.service.CursoService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/cursos")
+@CrossOrigin(origins = "http://localhost:4200")
 public class CursoController {
 
     private final CursoService service;
@@ -19,34 +21,37 @@ public class CursoController {
         this.service = service;
     }
 
-    // LISTAR
     @GetMapping
-    public List<CursoResponseDTO> listar() {
-        return service.listar();
+    public PagedResponseDTO<CursoResponseDTO> listar(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String busca) {
+
+        List<CursoResponseDTO> todos = service.listar();
+
+        List<CursoResponseDTO> filtrados = todos.stream()
+                .filter(c -> status == null || status.equals(c.getStatus()))
+                .filter(c -> busca == null || c.getTitulo().toLowerCase().contains(busca.toLowerCase()))
+                .toList();
+
+        return PagedResponseDTO.of(filtrados);
     }
 
-    // BUSCAR POR ID
     @GetMapping("/{id}")
     public CursoResponseDTO buscarPorId(@PathVariable Long id) {
         return service.buscarPorId(id);
     }
 
-    // CRIAR
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CursoResponseDTO criar(@Valid @RequestBody CursoRequestDTO dto) {
         return service.criar(dto);
     }
 
-    // ATUALIZAR
     @PutMapping("/{id}")
-    public CursoResponseDTO atualizar(
-            @PathVariable Long id,
-            @Valid @RequestBody CursoRequestDTO dto) {
+    public CursoResponseDTO atualizar(@PathVariable Long id, @Valid @RequestBody CursoRequestDTO dto) {
         return service.atualizar(id, dto);
     }
 
-    // DELETAR
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deletar(@PathVariable Long id) {

@@ -27,6 +27,9 @@ public class Usuario {
     @Column(nullable = false)
     private boolean ativo;
 
+    @Column(nullable = false, length = 20)
+    private String perfil = "ALUNO";
+
     // Construtor vazio (obrigatório para JPA)
     public Usuario() {
     }
@@ -38,6 +41,11 @@ public class Usuario {
         this.email = email;
         this.senha = senha;
         this.ativo = ativo;
+    }
+
+    public Usuario(Long id, String nome, String email, String senha, boolean ativo, String perfil) {
+        this(id, nome, email, senha, ativo);
+        this.perfil = perfil;
     }
 
     // Getters e Setters
@@ -80,6 +88,14 @@ public class Usuario {
 
     public void setAtivo(boolean ativo) {
         this.ativo = ativo;
+    }
+
+    public String getPerfil() {
+        return perfil;
+    }
+
+    public void setPerfil(String perfil) {
+        this.perfil = perfil;
     }
 }
 

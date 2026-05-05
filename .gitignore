@@ -31,3 +31,8 @@ Thumbs.db
 # Se você usa arquivos externos para senhas ou chaves de API
 .env
 application-local.properties
+
+*.db
+*.mv.db
+node_modules/
+.angular/

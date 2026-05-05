@@ -1,0 +1,186 @@
+<div class="page" role="main">
+
+  <!-- ── Cabeçalho da página ──────────────────────────────── -->
+  <div class="page-header">
+    <nav class="breadcrumb" aria-label="Navegação estrutural">
+      <a routerLink="/dashboard" class="breadcrumb__item">DASHBOARD</a>
+      <span class="breadcrumb__sep" aria-hidden="true">›</span>
+      <span class="breadcrumb__item breadcrumb__item--ativo" aria-current="page">MEUS PROJETOS</span>
+    </nav>
+
+    <div class="page-header__corpo">
+      <div class="page-header__texto">
+        <h1 class="page-titulo">Meus Projetos</h1>
+        <p class="page-subtitulo">
+          Gerencie suas criações arquitetônicas e acompanhe seu progresso acadêmico em tempo real.
+        </p>
+      </div>
+
+      <!-- Filtros de tab -->
+      <div class="tabs" role="tablist" aria-label="Filtrar projetos">
+        @for (tab of tabs; track tab.valor) {
+          <button
+            role="tab"
+            class="tab"
+            [class.tab--ativo]="filtroAtivo() === tab.valor"
+            [attr.aria-selected]="filtroAtivo() === tab.valor"
+            (click)="filtroAtivo.set(tab.valor)"
+          >
+            {{ tab.label }}
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Conteúdo ────────────────────────────────────────── -->
+  <section class="conteudo" aria-label="Lista de projetos">
+
+    <!-- Carregando -->
+    @if (estado().status === 'carregando') {
+      <div class="grade-projetos" aria-busy="true" aria-label="Carregando projetos">
+        @for (_ of [1, 2, 3]; track $index) {
+          <div class="skeleton-card" aria-hidden="true">
+            <div class="skeleton skeleton--img"></div>
+            <div class="skeleton-card__corpo">
+              <div class="skeleton skeleton--titulo"></div>
+              <div class="skeleton skeleton--linha"></div>
+              <div class="skeleton skeleton--progresso"></div>
+              <div class="skeleton skeleton--btn"></div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Erro -->
+    @if (erroBusca()) {
+      <div class="estado-vazio" role="alert">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--cor-danger)" stroke-width="1.5" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <p>{{ erroBusca() }}</p>
+        <button class="btn-primario" (click)="filtroAtivo.set(filtroAtivo())">
+          Tentar novamente
+        </button>
+      </div>
+    }
+
+    <!-- Lista de projetos -->
+    @if (estado().status === 'sucesso') {
+      @if (projetos().length === 0) {
+        <div class="estado-vazio" role="status">
+          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--cor-borda-forte)" stroke-width="1.2" aria-hidden="true">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+          <p>Nenhum projeto encontrado nesta categoria.</p>
+          <a routerLink="/projetos/enviar" class="btn-primario">Iniciar Novo Projeto</a>
+        </div>
+      } @else {
+        <div class="grade-projetos" role="list">
+          @for (projeto of projetos(); track trackByProjeto($index, projeto)) {
+            <article
+              class="card-projeto"
+              role="listitem"
+              [attr.aria-label]="'Projeto: ' + projeto.nome"
+            >
+              <!-- Imagem com badge de status -->
+              <div class="card-projeto__imagem">
+                @if (projeto.capUrl) {
+                  <img
+                    [src]="projeto.capUrl"
+                    [alt]="'Capa do projeto ' + projeto.nome"
+                    loading="lazy"
+                    width="400"
+                    height="220"
+                  />
+                } @else {
+                  <div class="card-projeto__imagem-placeholder" aria-hidden="true">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+                      <rect x="3" y="3" width="18" height="18" rx="2"/>
+                      <circle cx="8.5" cy="8.5" r="1.5"/>
+                      <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                  </div>
+                }
+
+                <span
+                  class="badge-status"
+                  [class]="'badge-status--' + statusVariante(projeto.status)"
+                  [attr.aria-label]="'Status: ' + statusLabel(projeto.status)"
+                >
+                  {{ statusLabel(projeto.status) }}
+                </span>
+              </div>
+
+              <!-- Corpo do card -->
+              <div class="card-projeto__corpo">
+                <h2 class="card-projeto__titulo">{{ projeto.nome }}</h2>
+                <p class="card-projeto__turma">{{ projeto.turma }}</p>
+
+                <!-- Barra de progresso -->
+                <div class="progresso-bloco">
+                  <div class="progresso-topo">
+                    <span class="progresso-label">Progresso</span>
+                    <span class="progresso-pct" aria-label="{{ projeto.progresso }}% concluído">
+                      {{ projeto.progresso }}%
+                    </span>
+                  </div>
+                  <div
+                    class="progresso-trilha"
+                    role="progressbar"
+                    [attr.aria-valuenow]="projeto.progresso"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                  >
+                    <div
+                      class="progresso-barra"
+                      [style.width.%]="projeto.progresso"
+                    ></div>
+                  </div>
+                </div>
+
+                <!-- Data de entrega -->
+                <p class="data-entrega">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  Entrega: {{ formatarData(projeto.prazoEntrega) }}
+                </p>
+
+                <!-- Ação principal -->
+                <button
+                  class="btn-primario btn-acao"
+                  (click)="projeto.status === 'AGUARDANDO_ENVIO'
+                    ? enviarProjeto(projeto.id)
+                    : irParaProjeto(projeto.id)"
+                  [attr.aria-label]="btnLabel(projeto.status) + ' de ' + projeto.nome"
+                >
+                  {{ btnLabel(projeto.status) }}
+                </button>
+              </div>
+            </article>
+          }
+        </div>
+      }
+    }
+
+  </section>
+
+  <!-- ── FAB: novo projeto ─────────────────────────────────── -->
+  <a
+    routerLink="/projetos/enviar"
+    class="fab"
+    aria-label="Enviar novo projeto"
+    title="Enviar novo projeto"
+  >
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  </a>
+
+</div>

@@ -1,0 +1,191 @@
+<div class="page" role="main">
+
+  <!-- ── Navbar ─────────────────────────────────────────── -->
+  <header class="navbar" role="banner">
+    <span class="navbar__brand">EduFlow</span>
+    <nav class="navbar__links" aria-label="Navegação principal">
+      <a routerLink="/dashboard" class="navbar__link navbar__link--active">Dashboard</a>
+      <a routerLink="/projetos"  class="navbar__link">Meus Projetos</a>
+      <a routerLink="/turmas"    class="navbar__link">Turmas</a>
+    </nav>
+    <div class="navbar__actions">
+      <button class="icon-btn" aria-label="Notificações">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </button>
+      <button class="icon-btn" aria-label="Ajuda">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </button>
+      <div class="avatar" aria-label="Perfil do usuário">
+        {{ auth.usuario()?.nomeCompleto?.charAt(0) ?? 'U' }}
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Conteúdo principal ──────────────────────────────── -->
+  @switch (estado().status) {
+
+    @case ('carregando') {
+      <div class="estado-feedback" role="status" aria-live="polite">
+        <div class="skeleton skeleton--hero"></div>
+        <div class="skeleton skeleton--card"></div>
+      </div>
+    }
+
+    @case ('erro') {
+      <div class="estado-feedback" role="alert">
+        <div class="erro-bloco">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--cor-danger)" stroke-width="1.5" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <p>{{ estado().status === 'erro' ? $any(estado()).mensagem : '' }}</p>
+          <button class="btn-primario" (click)="navegarParaProjetos()">Tentar novamente</button>
+        </div>
+      </div>
+    }
+
+    @case ('sucesso') {
+      <!-- ── Hero ─────────────────────────────────────────── -->
+      <section class="hero" aria-labelledby="hero-titulo">
+        <div class="hero__imagem" aria-hidden="true">
+          <img
+            src="assets/images/hero-estudante.svg"
+            alt="Ilustração de estudante"
+            width="490"
+            height="270"
+            loading="eager"
+          />
+        </div>
+
+        <div class="hero__texto">
+          <h1 id="hero-titulo" class="hero__titulo">Bem-vindo à Academy!</h1>
+          <p class="hero__subtitulo">
+            Sua jornada no Digital Atelier começa agora. Você faz parte de uma
+            comunidade de elite dedicada ao domínio e ao rigor intelectual.
+          </p>
+          <div class="hero__ctas">
+            <a routerLink="/projetos" class="btn-primario">Iniciar Aprendizado</a>
+            <button class="btn-outline">Ver Cronograma</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Grade inferior ────────────────────────────────── -->
+      <div class="grade-inferior">
+
+        <!-- ── Card matrícula ativa ──────────────────────── -->
+        @if ($any(estado()).dados.matriculaAtiva; as matricula) {
+          <article class="card-matricula" aria-labelledby="matricula-titulo">
+            <span class="badge-label">MATRÍCULA ATIVA</span>
+
+            <div class="card-matricula__cabecalho">
+              <div>
+                <h2 id="matricula-titulo" class="card-matricula__titulo">
+                  {{ matricula.curso.titulo }}
+                </h2>
+                <p class="card-matricula__desc">{{ matricula.curso.descricao }}</p>
+                <p class="card-matricula__modulo">
+                  Seu primeiro módulo: "{{ matricula.primeiroModulo }}" já está disponível.
+                </p>
+              </div>
+              <div class="card-matricula__icone" aria-hidden="true">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--cor-primaria)" stroke-width="1.5">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+              </div>
+            </div>
+
+            <dl class="card-matricula__meta">
+              <div class="meta-item">
+                <dt class="meta-label">MENTOR</dt>
+                <dd class="meta-valor">{{ matricula.orientador.nomeCompleto }}</dd>
+              </div>
+              <div class="meta-item">
+                <dt class="meta-label">DURAÇÃO</dt>
+                <dd class="meta-valor">{{ matricula.duracao }}</dd>
+              </div>
+              <div class="meta-item">
+                <dt class="meta-label">CRÉDITOS</dt>
+                <dd class="meta-valor">{{ matricula.creditos }} ECTS</dd>
+              </div>
+            </dl>
+          </article>
+        } @else {
+          <article class="card-matricula card-matricula--vazio" aria-label="Sem matrícula ativa">
+            <p class="vazio-texto">Você não possui nenhuma matrícula ativa no momento.</p>
+            <a routerLink="/catalogo" class="btn-primario">Explorar Catálogo</a>
+          </article>
+        }
+
+        <!-- ── Coluna lateral ────────────────────────────── -->
+        <aside class="lateral" aria-label="Recursos e comunidade">
+
+          <!-- Biblioteca -->
+          <div
+            class="card-lateral"
+            [class.card-lateral--destaque]="$any(estado()).dados.bibliotecaStatus === 'CONCEDIDO'"
+          >
+            <div class="card-lateral__icone" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              </svg>
+            </div>
+            <div class="card-lateral__corpo">
+              <strong>Acesso à Biblioteca Atelier</strong>
+              <span>Desbloqueie mais de 4.5k periódicos premium</span>
+              <span
+                class="status-chip"
+                [class.status-chip--verde]="$any(estado()).dados.bibliotecaStatus === 'CONCEDIDO'"
+                [class.status-chip--cinza]="$any(estado()).dados.bibliotecaStatus !== 'CONCEDIDO'"
+              >
+                @switch ($any(estado()).dados.bibliotecaStatus) {
+                  @case ('CONCEDIDO') { STATUS: CONCEDIDO }
+                  @case ('PENDENTE')  { STATUS: PENDENTE }
+                  @default            { STATUS: NEGADO }
+                }
+              </span>
+            </div>
+            <svg class="card-lateral__seta" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </div>
+
+          <!-- Student Lounge -->
+          <div class="card-lateral card-lateral--azul">
+            <div class="card-lateral__corpo">
+              <strong>Student Lounge</strong>
+              <span>Conecte-se com colegas do Departamento de Arquitetura.</span>
+              <button class="btn-lounge">
+                ENTRAR NA DISCUSSÃO
+                <span class="lounge-participantes" aria-label="{{ $any(estado()).dados.loungeParticipantes }} participantes">
+                  @for (_ of [1,2,3]; track $index) {
+                    <span class="avatar-mini" aria-hidden="true"></span>
+                  }
+                </span>
+              </button>
+            </div>
+          </div>
+
+        </aside>
+      </div>
+    }
+  }
+
+  <!-- ── Footer ──────────────────────────────────────────── -->
+  <footer class="footer" role="contentinfo">
+    <span>© 2024 EduFlow Academy. Plataforma de Projetos.</span>
+    <nav aria-label="Links do rodapé">
+      <a href="#" class="footer__link">Política de Privacidade</a>
+      <a href="#" class="footer__link">Termos de Uso</a>
+      <a href="#" class="footer__link">Acessibilidade</a>
+    </nav>
+  </footer>
+
+</div>
