@@ -19,7 +19,7 @@ import { finalize } from 'rxjs';
             <i class="ph ph-caret-right"></i>
             <span>{{ curso.categoria }}</span>
           </div>
-          
+
           <h1 class="titulo-curso">{{ curso.titulo }}</h1>
           <p class="descricao-curso">{{ curso.descricao }}</p>
 
@@ -97,8 +97,9 @@ import { finalize } from 'rxjs';
                 </div>
               </div>
             </div>
-          </div>
+        </section>
         </div>
+
 
         <!-- Coluna Direita: Matrícula -->
         <aside class="sidebar">
@@ -108,8 +109,8 @@ import { finalize } from 'rxjs';
               <span class="access-type">{{ curso.tipoAcesso }}</span>
             </div>
 
-            <button 
-              class="btn btn-primary btn-block btn-lg" 
+            <button
+              class="btn btn-primary btn-block btn-lg"
               [disabled]="enrolling"
               (click)="onMatricular()">
               <span *ngIf="!enrolling && !jaMatriculado">Matricular-se Agora</span>
@@ -304,7 +305,7 @@ import { finalize } from 'rxjs';
       position: sticky;
       top: 2rem;
       padding: 2rem;
-      border-radius: var(--radius-xl);
+      border-radius: var(--radius-lg);
       background: rgba(30, 41, 59, 0.5);
     }
 
