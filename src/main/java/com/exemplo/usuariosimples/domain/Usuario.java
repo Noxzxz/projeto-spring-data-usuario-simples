@@ -1,59 +1,85 @@
 package com.exemplo.usuariosimples.domain;
 
-import com.exemplo.usuariosimples.domain.vo.NomeUsuario;
-import com.exemplo.usuariosimples.domain.vo.EmailUsuario;
-import com.exemplo.usuariosimples.domain.vo.SenhaCriptografada;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "usuarios")
-@Inheritance(strategy = InheritanceType.JOINED)
-public abstract class Usuario {
+public class Usuario {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Embedded
-    private NomeUsuario nome;
-    @Embedded
-    private EmailUsuario email;
-    @Embedded
-    private SenhaCriptografada senha;
+    @Column(nullable = false, length = 100)
+    private String nome;
+
+    @Column(nullable = false,unique = true, length = 120)
+    private String email;
+
+    @Column(nullable = false,length = 21)
+    private String senha;
 
     @Column(nullable = false)
-    private boolean ativo = true; // Valor padrão comum
+    private boolean ativo;
 
-    protected Usuario() { }
+    // Construtor vazio (obrigatório para JPA)
+    public Usuario() {
+    }
 
-    public Usuario(NomeUsuario nome, EmailUsuario email, SenhaCriptografada senha, boolean ativo) {
+    // Construtor completo
+    public Usuario(Long id, String nome, String email, String senha, boolean ativo) {
+        this.id = id;
         this.nome = nome;
         this.email = email;
         this.senha = senha;
         this.ativo = ativo;
     }
 
-    // Getters Públicos
-    public Long getId() { return id; }
-    public NomeUsuario getNome() { return nome; }
-    public EmailUsuario getEmail() { return email; }
-    public SenhaCriptografada getSenha() { return senha; }
-    public boolean isAtivo() { return ativo; }
+    // Getters e Setters
 
-    // Setters e Métodos de Negócio
-    public void setAtivo(boolean ativo) { this.ativo = ativo; }
-
-    // Metodo de Negócio para Atualização (Substituindo o objeto inteiro)
-    public void alterarPerfil(NomeUsuario novoNome, EmailUsuario novoEmail) {
-        if (novoNome == null || novoEmail == null) {
-            throw new IllegalArgumentException("Dados de perfil não podem ser nulos");
-        }
-        this.nome = novoNome;
-        this.email = novoEmail;
+    public Long getId() {
+        return id;
     }
 
-    public void setSenha(SenhaCriptografada novaSenha) {
-        if (novaSenha == null) throw new IllegalArgumentException("A senha não pode ser nula");
-        this.senha = novaSenha;
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getNome() {
+        return nome;
+    }
+
+    public void setNome(String nome) {
+        this.nome = nome;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getSenha() {
+        return senha;
+    }
+
+    public void setSenha(String senha) {
+        this.senha = senha;
+    }
+
+    public boolean isAtivo() {
+        return ativo;
+    }
+
+    public void setAtivo(boolean ativo) {
+        this.ativo = ativo;
     }
 }
+

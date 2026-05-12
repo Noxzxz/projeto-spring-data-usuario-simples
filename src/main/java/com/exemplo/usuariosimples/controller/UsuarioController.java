@@ -1,13 +1,11 @@
 package com.exemplo.usuariosimples.controller;
 
-import com.exemplo.usuariosimples.controller.dto.AtualizarUsuarioDTO;
 import com.exemplo.usuariosimples.domain.Usuario;
 import com.exemplo.usuariosimples.service.UsuarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -62,12 +60,11 @@ public class UsuarioController {
     // PUT /usuarios/{id}
     @PutMapping("/{id}")
     @Operation(summary = "Atualiza um usuário existente")
-    public ResponseEntity<Void> atualizar(
+    public Usuario atualizar(
             @PathVariable Long id,
-            @Valid @RequestBody AtualizarUsuarioDTO dto) {
+            @Valid @RequestBody Usuario usuario) {
 
-        usuarioService.atualizar(id, dto.nome(), dto.email());
-        return ResponseEntity.noContent().build(); // 204 No Content é o ideal para updates que não retornam corpo
+        return usuarioService.atualizar(id, usuario);
     }
 
     // DELETE /usuarios/{id}
