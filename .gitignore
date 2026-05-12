@@ -1,14 +1,33 @@
-### Java & Build Tools ###
-node_modules/
-/target/
+# ======= JAVA & SPRING BOOT (MAVEN) =======
+target/
 !.mvn/wrapper/maven-wrapper.jar
 !gradle/wrapper/gradle-wrapper.jar
 build/
 .gradle/
 bin/
 out/
+*.db
+*.mv.db
+*.trace.db
 
-### IDEs (IntelliJ, Eclipse, VS Code) ###
+# ======= ANGULAR / NODE / FRONTEND =======
+node_modules/
+.angular/
+dist/
+tmp/
+out-tsc/
+bazel-out/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.sass-cache/
+/connect.lock
+/coverage
+/libpeerconnection.log
+testem.log
+/typings
+
+# ======= IDEs & EDITORS =======
 .idea/
 *.iml
 *.iws
@@ -16,19 +35,25 @@ out/
 .classpath
 .settings/
 .factorypath
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/
+*.sublime-workspace
+.c9/
+*.launch
 
-### Log Files ###
-*.log
-logs/
-
-### OS specific files ###
+# ======= OPERATING SYSTEM =======
 .DS_Store
 .DS_Store?
 ._*
 Thumbs.db
 
-### Configurações Sensíveis (Opcional, mas recomendado) ###
-# Se você usa arquivos externos para senhas ou chaves de API
+# ======= ENVIRONMENT & LOGS =======
 .env
+.env.local
+*.log
+logs/
 application-local.properties
