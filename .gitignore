@@ -1,4 +1,5 @@
 ### Java & Build Tools ###
+node_modules/
 /target/
 !.mvn/wrapper/maven-wrapper.jar
 !gradle/wrapper/gradle-wrapper.jar
