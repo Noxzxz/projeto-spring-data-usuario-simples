@@ -57,6 +57,8 @@ public class CursoService {
         if (dto.getTipoAcesso() != null) curso.setTipoAcesso(dto.getTipoAcesso());
         if (dto.getDuracaoTotal() != null) curso.setDuracaoTotal(dto.getDuracaoTotal());
         if (dto.getCapUrl() != null) curso.setCapUrl(dto.getCapUrl());
+        if (dto.getPublicoAlvo() != null) curso.setPublicoAlvo(dto.getPublicoAlvo());
+        if (dto.getConhecimentosPrevios() != null) curso.setConhecimentosPrevios(dto.getConhecimentosPrevios());
         if (dto.getInstrutorId() != null) {
             usuarioRepository.findById(dto.getInstrutorId()).ifPresent(curso::setInstrutor);
         }
@@ -78,7 +80,9 @@ public class CursoService {
                 curso.getDuracaoTotal(),
                 curso.getPreco(),
                 curso.getTipoAcesso(),
-                curso.isCertificacaoDigital()
+                curso.isCertificacaoDigital(),
+                curso.getPublicoAlvo(),
+                curso.getConhecimentosPrevios()
         );
     }
 }

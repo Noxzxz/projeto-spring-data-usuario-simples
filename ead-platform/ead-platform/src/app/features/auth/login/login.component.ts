@@ -1,13 +1,13 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
-import { FormsModule } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, ReactiveFormsModule],
   template: `
     <div class="auth-container">
       <div class="auth-card glass-panel animate-fade-in">
@@ -17,18 +17,27 @@ import { FormsModule } from '@angular/forms';
           </div>
           <h2>Bem-vindo de volta</h2>
           <p class="subtitle">Acesse sua conta para continuar aprendendo</p>
-          <div style="background: rgba(139, 92, 246, 0.1); padding: 0.75rem; border-radius: 8px; margin-top: 1rem; font-size: 0.8rem; border: 1px dashed var(--primary-color);">
-            <strong>Dica de Teste:</strong><br>
-            Use um e-mail com <em>"instrutor"</em> para acessar como Instrutor.<br>Qualquer outro e-mail entrará como Aluno.
-          </div>
         </div>
 
-        <form class="auth-form" (submit)="onLogin($event)">
+        <div *ngIf="errorMessage" class="alert-danger">
+          {{ errorMessage }}
+        </div>
+
+        <form class="auth-form" [formGroup]="loginForm" (ngSubmit)="onLogin()">
           <div class="form-group">
             <label class="form-label">E-mail</label>
             <div class="input-with-icon">
               <i class="ph ph-envelope-simple"></i>
-              <input type="email" class="form-input" placeholder="seu@email.com" [(ngModel)]="email" name="email" required>
+              <input 
+                type="email" 
+                class="form-input" 
+                [class.is-invalid]="isFieldInvalid('email')"
+                placeholder="seu@email.com" 
+                formControlName="email">
+            </div>
+            <div *ngIf="isFieldInvalid('email')" class="invalid-feedback">
+              <span *ngIf="loginForm.get('email')?.errors?.['required']">O e-mail é obrigatório.</span>
+              <span *ngIf="loginForm.get('email')?.errors?.['email']">Informe um e-mail válido.</span>
             </div>
           </div>
 
@@ -39,7 +48,16 @@ import { FormsModule } from '@angular/forms';
             </div>
             <div class="input-with-icon">
               <i class="ph ph-lock-key"></i>
-              <input type="password" class="form-input" placeholder="••••••••" [(ngModel)]="senha" name="senha" required>
+              <input 
+                type="password" 
+                class="form-input" 
+                [class.is-invalid]="isFieldInvalid('senha')"
+                placeholder="••••••••" 
+                formControlName="senha">
+            </div>
+            <div *ngIf="isFieldInvalid('senha')" class="invalid-feedback">
+              <span *ngIf="loginForm.get('senha')?.errors?.['required']">A senha é obrigatória.</span>
+              <span *ngIf="loginForm.get('senha')?.errors?.['minlength']">A senha deve ter no mínimo 6 caracteres.</span>
             </div>
           </div>
 
@@ -196,30 +214,49 @@ import { FormsModule } from '@angular/forms';
     }
   `]
 })
-export class LoginComponent {
-  auth = inject(AuthService);
-  router = inject(Router);
+export class LoginComponent implements OnInit {
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly fb = inject(FormBuilder);
 
-  email = '';
-  senha = '';
+  loginForm!: FormGroup;
   loading = false;
+  errorMessage = '';
 
-  onLogin(event: Event) {
-    event.preventDefault();
+  ngOnInit(): void {
+    this.loginForm = this.fb.group({
+      email: ['', [Validators.required, Validators.email]],
+      senha: ['', [Validators.required, Validators.minLength(6)]]
+    });
+  }
+
+  isFieldInvalid(field: string): boolean {
+    const control = this.loginForm.get(field);
+    return !!(control && control.invalid && (control.touched || control.dirty));
+  }
+
+  onLogin(): void {
+    if (this.loginForm.invalid) {
+      this.loginForm.markAllAsTouched();
+      return;
+    }
+
     this.loading = true;
+    this.errorMessage = '';
     
-    this.auth.login({ email: this.email, senha: this.senha }).subscribe({
+    this.auth.login(this.loginForm.value).subscribe({
       next: () => {
         this.loading = false;
-        const isInstrutor = this.auth.usuario()?.perfil === 'INSTRUTOR';
-        if (isInstrutor) {
+        const perfil = this.auth.getUserPerfil();
+        if (perfil === 'INSTRUTOR') {
           this.router.navigate(['/instrutor/dashboard']);
         } else {
           this.router.navigate(['/dashboard']);
         }
       },
-      error: () => {
+      error: (err) => {
         this.loading = false;
+        this.errorMessage = err.error?.mensagem || 'E-mail ou senha incorretos.';
       }
     });
   }

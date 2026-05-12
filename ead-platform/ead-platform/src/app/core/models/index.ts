@@ -111,12 +111,15 @@ export interface CursoSummary {
   preco: number;
   tipoAcesso: 'VITALICIO' | 'POR_PERIODO';
   certificacaoDigital: boolean;
+  publicoAlvo: string;
+  conhecimentosPrevios: string;
 }
 
 export interface CursoDetalhe extends CursoSummary {
   instrutor: UsuarioSummary;
   modulos: Modulo[];
   publicoAlvo: string;
+  conhecimentosPrevios: string;
   prerequisitos: string[];
   criadoEm: string;
   atualizadoEm: string;

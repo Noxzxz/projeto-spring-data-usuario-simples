@@ -15,13 +15,15 @@ public class CursoResponseDTO {
     private double preco;
     private String tipoAcesso;
     private boolean certificacaoDigital;
+    private String publicoAlvo;
+    private String conhecimentosPrevios;
 
     public CursoResponseDTO() {}
 
     public CursoResponseDTO(Long id, String titulo, String descricao, String capUrl,
                              String categoria, String nivel, String status, int totalAlunos,
                              Double avaliacao, String duracaoTotal, double preco,
-                             String tipoAcesso, boolean certificacaoDigital) {
+                             String tipoAcesso, boolean certificacaoDigital, String publicoAlvo, String conhecimentosPrevios) {
         this.id = id;
         this.titulo = titulo;
         this.descricao = descricao;
@@ -35,6 +37,8 @@ public class CursoResponseDTO {
         this.preco = preco;
         this.tipoAcesso = tipoAcesso;
         this.certificacaoDigital = certificacaoDigital;
+        this.publicoAlvo = publicoAlvo;
+        this.conhecimentosPrevios = conhecimentosPrevios;
     }
 
     public Long getId() { return id; }
@@ -50,4 +54,6 @@ public class CursoResponseDTO {
     public double getPreco() { return preco; }
     public String getTipoAcesso() { return tipoAcesso; }
     public boolean isCertificacaoDigital() { return certificacaoDigital; }
+    public String getPublicoAlvo() { return publicoAlvo; }
+    public String getConhecimentosPrevios() { return conhecimentosPrevios; }
 }

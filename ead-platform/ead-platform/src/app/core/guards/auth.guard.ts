@@ -6,20 +6,21 @@ export const authGuard: CanActivateFn = () => {
   const auth   = inject(AuthService);
   const router = inject(Router);
 
-  if (auth.isLogado()) {
+  if (auth.isLogado() && !auth.isTokenExpirado()) {
     return true;
   }
 
-  router.navigate(['/auth/login']);
+  // Se não está logado ou token expirou, limpa e redireciona
+  auth.logout();
   return false;
 };
 
 export const instrutorGuard: CanActivateFn = () => {
   const auth   = inject(AuthService);
   const router = inject(Router);
-  const user   = auth.usuario();
+  const perfil = auth.getUserPerfil();
 
-  if (user?.perfil === 'INSTRUTOR' || user?.perfil === 'ADMIN') {
+  if (perfil === 'INSTRUTOR' || perfil === 'ADMIN') {
     return true;
   }
 

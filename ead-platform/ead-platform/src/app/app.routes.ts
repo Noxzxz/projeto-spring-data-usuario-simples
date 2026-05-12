@@ -33,6 +33,22 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'catalogo',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/learning/catalogo/catalogo.component').then(
+        m => m.CatalogoComponent,
+      ),
+  },
+  {
+    path: 'curso/:id',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/learning/curso-detalhe/curso-detalhe.component').then(
+        m => m.CourseDetailComponent,
+      ),
+  },
+  {
     path: 'aula/:id',
     canActivate: [authGuard],
     loadComponent: () =>

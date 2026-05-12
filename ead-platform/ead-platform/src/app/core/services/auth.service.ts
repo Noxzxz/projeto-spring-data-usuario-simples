@@ -25,9 +25,50 @@ export class AuthService {
 
   readonly token = this._token.asReadonly();
   readonly usuario = this._usuario.asReadonly();
-  readonly isLogado = computed(() => !!this._token());
+  readonly isLogado = computed(() => {
+    const t = this._token();
+    return !!t && !this.isTokenExpirado();
+  });
 
   // ── public API ───────────────────────────────────────────
+
+  decodeToken(token: string): any {
+    try {
+      const payload = token.split('.')[1];
+      return JSON.parse(atob(payload));
+    } catch {
+      return null;
+    }
+  }
+
+  isTokenExpirado(): boolean {
+    const t = this._token();
+    if (!t) return true;
+
+    try {
+      const decoded = this.decodeToken(t);
+      if (!decoded || !decoded.exp) return false; // Se não tem exp, assumimos válido ou tratamos conforme regra
+
+      const now = Math.floor(Date.now() / 1000);
+      return decoded.exp < now;
+    } catch {
+      return true;
+    }
+  }
+
+  getUserPerfil(): string | null {
+    // 1. Tenta pegar do sinal do usuário (mais confiável se o token não for um JWT completo)
+    const user = this._usuario();
+    if (user && user.perfil) {
+      return user.perfil;
+    }
+
+    // 2. Fallback para decodificação do token
+    const t = this._token();
+    if (!t) return null;
+    const decoded = this.decodeToken(t);
+    return decoded?.perfil || decoded?.role || null;
+  }
 
   login(payload: LoginRequest) {
     return this.http

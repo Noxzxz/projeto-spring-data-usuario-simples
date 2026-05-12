@@ -50,6 +50,12 @@ public class Curso {
     @Column(nullable = false)
     private boolean certificacaoDigital = false;
 
+    @Column
+    private String publicoAlvo;
+
+    @Column
+    private String conhecimentosPrevios;
+
     @ManyToOne
     @JoinColumn(name = "instrutor_id")
     private Usuario instrutor;
@@ -74,6 +80,8 @@ public class Curso {
     public double getPreco() { return preco; }
     public String getTipoAcesso() { return tipoAcesso; }
     public boolean isCertificacaoDigital() { return certificacaoDigital; }
+    public String getPublicoAlvo() { return publicoAlvo; }
+    public String getConhecimentosPrevios() { return conhecimentosPrevios; }
 
     public void setTitulo(String titulo) { this.titulo = new TituloCurso(titulo); }
     public void setDescricao(String descricao) { this.descricao = new DescricaoCurso(descricao); }
@@ -87,6 +95,8 @@ public class Curso {
     public void setPreco(double preco) { this.preco = preco; }
     public void setTipoAcesso(String tipoAcesso) { this.tipoAcesso = tipoAcesso; }
     public void setCertificacaoDigital(boolean certificacaoDigital) { this.certificacaoDigital = certificacaoDigital; }
+    public void setPublicoAlvo(String publicoAlvo) { this.publicoAlvo = publicoAlvo; }
+    public void setConhecimentosPrevios(String conhecimentosPrevios) { this.conhecimentosPrevios = conhecimentosPrevios; }
 
     public Usuario getInstrutor() { return instrutor; }
     public void setInstrutor(Usuario instrutor) { this.instrutor = instrutor; }

@@ -140,6 +140,29 @@ a:hover {
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
 }
 
+.form-input.is-invalid {
+  border-color: var(--danger-color);
+}
+
+.invalid-feedback {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--danger-color);
+  margin-top: 0.25rem;
+  animation: fadeIn 0.2s ease;
+}
+
+.alert-danger {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--danger-color);
+  color: var(--danger-color);
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  margin-bottom: var(--spacing-md);
+  animation: fadeIn 0.3s ease;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

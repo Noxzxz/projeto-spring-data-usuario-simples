@@ -45,7 +45,7 @@ public class DashboardController {
                     curso.getId(), curso.getTitulo(), curso.getDescricao(), curso.getCapUrl(),
                     curso.getCategoria(), curso.getNivel(), curso.getStatus(), curso.getTotalAlunos(),
                     curso.getAvaliacao(), curso.getDuracaoTotal(), curso.getPreco(), curso.getTipoAcesso(),
-                    curso.isCertificacaoDigital()
+                    curso.isCertificacaoDigital(), curso.getPublicoAlvo(), curso.getConhecimentosPrevios()
                 );
                 
                 UsuarioSummaryDTO orientador = null;
