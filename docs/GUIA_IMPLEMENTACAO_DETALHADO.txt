@@ -1,0 +1,610 @@
+================================================================================
+GUIA DE IMPLEMENTAÇÃO DETALHADO
+Projeto EAD Platform - Prioridades para Demo (25/05)
+================================================================================
+
+CONTEXTO: Projeto Acadêmico
+- Segurança: Importante, mas não crítica (não há dados reais sensíveis)
+- Foco: Funcionalidade demonstrável para a banca
+- Prazo: 25/05/2025
+
+================================================================================
+PRIORIDADE 1 - FUNDAÇÃO (2-3 dias)
+================================================================================
+
+## 1.1 Adicionar spring-boot-starter-security ao pom.xml
+
+ARQUIVO: pom.xml
+
+ADICIONAR após linha 59 (dentro de <dependencies>):
+
+    <!-- Spring Security -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+
+    <!-- JWT Library (jjwt) -->
+    <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-api</artifactId>
+        <version>0.11.5</version>
+    </dependency>
+    <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-impl</artifactId>
+        <version>0.11.5</version>
+        <scope>runtime</scope>
+    </dependency>
+    <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-jackson</artifactId>
+        <version>0.11.5</version>
+        <scope>runtime</scope>
+    </dependency>
+
+VALIDAR: mvn clean compile
+
+--------------------------------------------------------------------------------
+## 1.2 Criar infrastructure.security (5 arquivos)
+
+CRIAR DIRETÓRIO: src/main/java/com/exemplo/usuariosimples/infrastructure/security/
+
+ARQUIVO 1/5: JwtTokenProvider.java
+--------------------------------------------------------------------------------
+package com.exemplo.usuariosimples.infrastructure.security;
+
+import io.jsonwebtoken.*;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import java.util.Date;
+import java.util.function.Function;
+
+@Component
+public class JwtTokenProvider {
+
+    @Value("${app.jwt.secret}")
+    private String jwtSecret;
+
+    @Value("${app.jwt.expiration}")
+    private long jwtExpiration;
+
+    public String generateToken(String email, Long userId, String perfil) {
+        return Jwts.builder()
+                .setSubject(email)
+                .claim("userId", userId)
+                .claim("perfil", perfil)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
+                .signWith(SignatureAlgorithm.HS256, jwtSecret)
+                .compact();
+    }
+
+    public String getEmailFromToken(String token) {
+        return getClaimFromToken(token, Claims::getSubject);
+    }
+
+    public Long getUserIdFromToken(String token) {
+        return getClaimFromToken(token, claims -> claims.get("userId", Long.class));
+    }
+
+    public String getPerfilFromToken(String token) {
+        return getClaimFromToken(token, claims -> claims.get("perfil", String.class));
+    }
+
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private <T> T getClaimFromToken(String token, Function<Claims, T> claimsResolver) {
+        final Claims claims = Jwts.parser()
+                .setSigningKey(jwtSecret)
+                .parseClaimsJws(token)
+                .getBody();
+        return claimsResolver.apply(claims);
+    }
+}
+
+--------------------------------------------------------------------------------
+ARQUIVO 2/5: JwtAuthFilter.java
+--------------------------------------------------------------------------------
+package com.exemplo.usuariosimples.infrastructure.security;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+@Component
+public class JwtAuthFilter extends OncePerRequestFilter {
+
+    private final JwtTokenProvider tokenProvider;
+    private final UserDetailsServiceImpl userDetailsService;
+
+    public JwtAuthFilter(JwtTokenProvider tokenProvider, UserDetailsServiceImpl userDetailsService) {
+        this.tokenProvider = tokenProvider;
+        this.userDetailsService = userDetailsService;
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, 
+                                    HttpServletResponse response, 
+                                    FilterChain filterChain) 
+            throws ServletException, java.io.IOException {
+        
+        String token = recoverToken(request);
+        
+        if (token != null && tokenProvider.validateToken(token)) {
+            String email = tokenProvider.getEmailFromToken(token);
+            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+            
+            UsernamePasswordAuthenticationToken authentication = 
+                new UsernamePasswordAuthenticationToken(
+                    userDetails, 
+                    null, 
+                    userDetails.getAuthorities()
+                );
+            
+            authentication.setDetails(
+                new WebAuthenticationDetailsSource().buildDetails(request)
+            );
+            
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+        }
+        
+        filterChain.doFilter(request, response);
+    }
+
+    private String recoverToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return null;
+        }
+        return authHeader.substring(7);
+    }
+}
+
+--------------------------------------------------------------------------------
+ARQUIVO 3/5: SecurityConfig.java
+--------------------------------------------------------------------------------
+package com.exemplo.usuariosimples.infrastructure.security;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
+
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)
+public class SecurityConfig {
+
+    private final JwtAuthFilter jwtAuthFilter;
+
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+        this.jwtAuthFilter = jwtAuthFilter;
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .sessionManagement(session -> 
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                // Rotas públicas
+                .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/h2-console/**").permitAll()
+                .requestMatchers("/swagger-ui/**").permitAll()
+                .requestMatchers("/v3/api-docs/**").permitAll()
+                // CRUDs básicos públicos para demo (acadêmico)
+                .requestMatchers(HttpMethod.GET, "/usuarios/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/cursos/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/matriculas/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/assinaturas/**").permitAll()
+                // Rotas protegidas (requer autenticação)
+                .requestMatchers(HttpMethod.POST, "/usuarios/**").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/usuarios/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/usuarios/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/matriculas/**").authenticated()
+                .requestMatchers("/instrutor/**").hasAnyRole("INSTRUTOR", "ADMIN")
+                // Qualquer outra rota requer autenticação
+                .anyRequest().authenticated()
+            )
+            .headers(headers -> headers.frameOptions(frame -> frame.disable()))
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration authenticationConfiguration) throws Exception {
+        return authenticationConfiguration.getAuthenticationManager();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("http://localhost:4200"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
+        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+}
+
+--------------------------------------------------------------------------------
+ARQUIVO 4/5: UserDetailsImpl.java
+--------------------------------------------------------------------------------
+package com.exemplo.usuariosimples.infrastructure.security;
+
+import com.exemplo.usuariosimples.domain.Usuario;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import java.util.Collection;
+import java.util.Collections;
+
+public class UserDetailsImpl implements UserDetails {
+
+    private final Usuario usuario;
+
+    public UserDetailsImpl(Usuario usuario) {
+        this.usuario = usuario;
+    }
+
+    public static UserDetailsImpl create(Usuario usuario) {
+        return new UserDetailsImpl(usuario);
+    }
+
+    public Long getId() {
+        return usuario.getId();
+    }
+
+    public String getEmail() {
+        return usuario.getEmail();
+    }
+
+    public String getPerfil() {
+        return "ALUNO"; // Default para demo acadêmica
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + getPerfil()));
+    }
+
+    @Override
+    public String getPassword() {
+        return usuario.getSenha();
+    }
+
+    @Override
+    public String getUsername() {
+        return usuario.getEmail();
+    }
+
+    @Override
+    public boolean isAccountNonExpired() { return true; }
+
+    @Override
+    public boolean isAccountNonLocked() { return true; }
+
+    @Override
+    public boolean isCredentialsNonExpired() { return true; }
+
+    @Override
+    public boolean isEnabled() {
+        return usuario.isAtivo();
+    }
+}
+
+--------------------------------------------------------------------------------
+ARQUIVO 5/5: UserDetailsServiceImpl.java
+--------------------------------------------------------------------------------
+package com.exemplo.usuariosimples.infrastructure.security;
+
+import com.exemplo.usuariosimples.repository.UsuarioRepository;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
+
+@Service
+public class UserDetailsServiceImpl implements UserDetailsService {
+
+    private final UsuarioRepository usuarioRepository;
+
+    public UserDetailsServiceImpl(UsuarioRepository usuarioRepository) {
+        this.usuarioRepository = usuarioRepository;
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        Usuario usuario = usuarioRepository.findByEmail(email)
+            .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado com email: " + email));
+        
+        return UserDetailsImpl.create(usuario);
+    }
+}
+
+--------------------------------------------------------------------------------
+ADICIONAR NO application.properties:
+
+# JWT Configuration
+app.jwt.secret=MinhaChaveSecretaParaJWT-Academico-2025-NaoUsarEmProducao
+app.jwt.expiration=86400000
+
+--------------------------------------------------------------------------------
+ADICIONAR NO UsuarioRepository.java:
+
+    Optional<Usuario> findByEmail(String email);
+
+--------------------------------------------------------------------------------
+VALIDAR: mvn clean compile && mvn spring-boot:run
+
+================================================================================
+## 1.3 Criar AuthController + AuthUseCase
+
+CRIAR DIRETÓRIOS:
+  - src/main/java/com/exemplo/usuariosimples/application/auth/
+  - src/main/java/com/exemplo/usuariosimples/controller/auth/dto/
+
+ARQUIVO 1/6: application/auth/AuthUseCase.java
+--------------------------------------------------------------------------------
+package com.exemplo.usuariosimples.application.auth;
+
+import com.exemplo.usuariosimples.domain.Usuario;
+import com.exemplo.usuariosimples.infrastructure.security.JwtTokenProvider;
+import com.exemplo.usuariosimples.repository.UsuarioRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class AuthUseCase {
+
+    private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider tokenProvider;
+
+    public AuthUseCase(UsuarioRepository usuarioRepository,
+                       PasswordEncoder passwordEncoder,
+                       JwtTokenProvider tokenProvider) {
+        this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.tokenProvider = tokenProvider;
+    }
+
+    @Transactional
+    public String register(String nome, String email, String senha) {
+        if (usuarioRepository.findByEmail(email).isPresent()) {
+            throw new IllegalArgumentException("E-mail já cadastrado");
+        }
+
+        Usuario usuario = new Usuario();
+        usuario.setNome(nome);
+        usuario.setEmail(email);
+        usuario.setSenha(passwordEncoder.encode(senha));
+        usuario.setAtivo(true);
+
+        usuarioRepository.save(usuario);
+        return "Usuário cadastrado com sucesso";
+    }
+
+    @Transactional(readOnly = true)
+    public String login(String email, String senha) {
+        Usuario usuario = usuarioRepository.findByEmail(email)
+            .orElseThrow(() -> new IllegalArgumentException("E-mail ou senha inválidos"));
+
+        if (!passwordEncoder.matches(senha, usuario.getSenha())) {
+            throw new IllegalArgumentException("E-mail ou senha inválidos");
+        }
+
+        return tokenProvider.generateToken(
+            usuario.getEmail(),
+            usuario.getId(),
+            "ALUNO"
+        );
+    }
+}
+
+--------------------------------------------------------------------------------
+ARQUIVO 2/6: controller/auth/AuthController.java
+--------------------------------------------------------------------------------
+package com.exemplo.usuariosimples.controller.auth;
+
+import com.exemplo.usuariosimples.application.auth.AuthUseCase;
+import com.exemplo.usuariosimples.controller.auth.dto.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/auth")
+@Tag(name = "Autenticação", description = "Endpoints de login e registro")
+public class AuthController {
+
+    private final AuthUseCase authUseCase;
+
+    public AuthController(AuthUseCase authUseCase) {
+        this.authUseCase = authUseCase;
+    }
+
+    @PostMapping("/register")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Cadastra novo usuário")
+    public ResponseEntity<String> register(@Valid @RequestBody RegisterRequestDTO request) {
+        if (!request.senha().equals(request.confirmarSenha())) {
+            return ResponseEntity.badRequest().body("As senhas não conferem");
+        }
+
+        String resultado = authUseCase.register(
+            request.nomeCompleto(),
+            request.email(),
+            request.senha()
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(resultado);
+    }
+
+    @PostMapping("/login")
+    @Operation(summary = "Realiza login e retorna token JWT")
+    public ResponseEntity<LoginResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
+        String token = authUseCase.login(request.email(), request.senha());
+
+        LoginResponseDTO response = new LoginResponseDTO(
+            token,
+            "Bearer",
+            86400,
+            null
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<AuthErrorDTO> handleIllegalArgument(IllegalArgumentException ex) {
+        AuthErrorDTO error = new AuthErrorDTO(
+            HttpStatus.BAD_REQUEST.value(),
+            "Erro de autenticação",
+            ex.getMessage(),
+            "/auth"
+        );
+        return ResponseEntity.badRequest().body(error);
+    }
+}
+
+--------------------------------------------------------------------------------
+ARQUIVO 3/6: controller/auth/dto/LoginRequestDTO.java
+--------------------------------------------------------------------------------
+package com.exemplo.usuariosimples.controller.auth.dto;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record LoginRequestDTO(
+    @NotBlank(message = "E-mail é obrigatório")
+    @Email(message = "E-mail inválido")
+    String email,
+
+    @NotBlank(message = "Senha é obrigatória")
+    @Size(min = 6, message = "Senha deve ter no mínimo 6 caracteres")
+    String senha
+) {}
+
+--------------------------------------------------------------------------------
+ARQUIVO 4/6: controller/auth/dto/LoginResponseDTO.java
+--------------------------------------------------------------------------------
+package com.exemplo.usuariosimples.controller.auth.dto;
+
+public record LoginResponseDTO(
+    String token,
+    String tokenType,
+    long expiresIn,
+    Object usuario
+) {}
+
+--------------------------------------------------------------------------------
+ARQUIVO 5/6: controller/auth/dto/RegisterRequestDTO.java
+--------------------------------------------------------------------------------
+package com.exemplo.usuariosimples.controller.auth.dto;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record RegisterRequestDTO(
+    @NotBlank(message = "Nome é obrigatório")
+    @Size(min = 3, message = "Nome deve ter no mínimo 3 caracteres")
+    String nomeCompleto,
+
+    @NotBlank(message = "E-mail é obrigatório")
+    @Email(message = "E-mail inválido")
+    String email,
+
+    @NotBlank(message = "Senha é obrigatória")
+    @Size(min = 6, message = "Senha deve ter no mínimo 6 caracteres")
+    String senha,
+
+    @NotBlank(message = "Confirmação de senha é obrigatória")
+    String confirmarSenha
+) {}
+
+--------------------------------------------------------------------------------
+ARQUIVO 6/6: controller/auth/dto/AuthErrorDTO.java
+--------------------------------------------------------------------------------
+package com.exemplo.usuariosimples.controller.auth.dto;
+
+public record AuthErrorDTO(
+    int status,
+    String erro,
+    String mensagem,
+    String path
+) {}
+
+--------------------------------------------------------------------------------
+TESTAR NO SWAGGER (http://localhost:8081/swagger-ui.html):
+
+  1. POST /auth/register
+     {
+       "nomeCompleto": "Aluno Demo",
+       "email": "aluno@demo.com",
+       "senha": "123456",
+       "confirmarSenha": "123456"
+     }
+     Esperado: 201 Created
+
+  2. POST /auth/login
+     {
+       "email": "aluno@demo.com",
+       "senha": "123456"
+     }
+     Esperado: 200 OK + token JWT
+
+  3. Copiar token e testar rota protegida:
+     GET /usuarios (header: Authorization: Bearer <token>)
+     Esperado: 200 OK

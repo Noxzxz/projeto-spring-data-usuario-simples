@@ -1,0 +1,1126 @@
+# ANÁLISE TÉCNICA DE PROGRESSO - PROJETO EAD PLATFORM
+## Comparativo: Código Atual vs. Sprint Planning DDD
+
+Data da Análise: 14 de maio de 2026
+Versão do Planejamento: sprint_planning_ddd.txt
+Commit de Referência: eb2ede3984fab62b2dabfe16222228fbe84a6616
+
+================================================================================
+# RESUMO EXECUTIVO
+================================================================================
+
+* Sprint atual provável:                    NENHUMA (projeto base não implementa DDD)
+* Última sprint concluída:                  NENHUMA (0 de 3 sprints concluídas)
+* Percentual estimado:                      ~8-12% do planejamento DDD
+* Estado geral do projeto:                  CRÍTICO - Arquitetura DDD NÃO IMPLEMENTADA
+
+O projeto atual é um CRUD simples de usuários com Spring Data JPA básico.
+A arquitetura DDD planejada (domain, application, infrastructure, interfaces.rest)
+NÃO EXISTE no código backend. O frontend Angular está mais avançado que o backend.
+
+================================================================================
+# ANÁLISE POR SPRINT
+================================================================================
+
+## Sprint 1 - Autenticação e Catálogo (05/05 - 11/05)
+### Bounded Contexts: usuario + academico
+### Meta: Cadastro, login, catálogo, matrícula
+
+--------------------------------------------------------------------------------
+### T1.1 - Entidades DDD com Herança JPA + Value Objects
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA (implementação atual NÃO segue DDD)
+
+Evidências:
+  - ENTIDADE Usuario.java existe, MAS:
+    * NÃO há classe abstrata Pessoa como base
+    * NÃO há @Inheritance(strategy = InheritanceType.JOINED)
+    * NÃO existem entidades Aluno, Professor, Administrador
+    * Atributos são primitivos (String senha), não usam VOs
+    * Long id em vez de UUID
+  
+  - Value Objects EmailUsuario, NomeUsuario, SenhaCriptografada existem como:
+    * records Java (correto)
+    * MAS NÃO SÃO USADOS pela entidade Usuario
+    * Usuario usa String direto para email, nome, senha
+  
+  - AlunoRepository NÃO existe
+  - TiposAssinatura enum existe, mas não integrado com Aluno
+
+Problemas:
+  [CRÍTICO] Usuario é uma entidade anêmica, não um Aggregate Root
+  [CRÍTICO] Não há separação entre Aluno/Professor/Admin - todos são "Usuario"
+  [CRÍTICO] VOs existem mas não são usados nas entidades
+  [CRÍTICO] Herança JPA não implementada
+  [CRÍTICO] UUID não usado - sistema usa Long (sequencial, não seguro)
+
+Arquivos relacionados:
+  - src/main/java/.../domain/Usuario.java (entidade anêmica)
+  - src/main/java/.../domain/vo/EmailUsuario.java (não usado)
+  - src/main/java/.../domain/vo/NomeUsuario.java (não usado)
+  - src/main/java/.../domain/Administrador.java (existe mas isolado)
+
+--------------------------------------------------------------------------------
+### T1.2 - Spring Security + JWT com Roles
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - NÃO EXISTE pacote infrastructure.security
+  - NÃO EXISTE JwtAuthFilter
+  - NÃO EXISTE SecurityConfig
+  - pom.xml NÃO TEM dependência spring-boot-starter-security
+  - NÃO EXISTE BCryptPasswordEncoder no código
+
+Problemas:
+  [CRÍTICO] Sistema SEM AUTENTICAÇÃO
+  [CRÍTICO] Senhas armazenadas em texto puro (campo String senha)
+  [CRÍTICO] Todas as APIs são públicas
+  [CRÍTICO] Não há controle de acesso por roles (ALUNO/PROFESSOR/ADMIN)
+
+Arquivos relacionados:
+  - pom.xml (falta spring-boot-starter-security)
+
+--------------------------------------------------------------------------------
+### T1.3 - API REST Auth (register/login) + AuthUseCase
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - NÃO EXISTE AuthController
+  - NÃO EXISTE AuthUseCase
+  - NÃO EXISTE pacote application.usuario
+  - NÃO EXISTEM DTOs RegisterRequestDTO, LoginResponseDTO
+  - UsuarioController existe mas é CRUD genérico, não auth
+
+Problemas:
+  [CRÍTICO] Não há endpoints /auth/register ou /auth/login
+  [CRÍTICO] Não há hash de senha no registro
+  [CRÍTICO] Não há geração de token JWT no login
+  [CRÍTICO] Service UsuarioService é CRUD, não tem lógica de auth
+
+Arquivos relacionados:
+  - src/main/java/.../controller/UsuarioController.java (CRUD, não auth)
+  - src/main/java/.../service/UsuarioService.java (CRUD básico)
+
+--------------------------------------------------------------------------------
+### T1.4 - Angular: AuthGuard + Interceptor HTTP
+--------------------------------------------------------------------------------
+Status:         PARCIAL (frontend implementado, backend não responde)
+
+Evidências:
+  - AuthGuard.ts existe e está implementado
+  - HttpInterceptor existe (auth.interceptor.ts)
+  - Guarda verifica token e redireciona para /login
+  - Interceptor injeta Bearer token
+
+Problemas:
+  [BLOQUEANTE] Backend não tem autenticação, então AuthGuard não tem o que validar
+  [BLOQUEANTE] Interceptor injeta token, mas backend não valida JWT
+  [INCONSISTENTE] Frontend espera /auth/login, backend não tem esse endpoint
+
+Arquivos relacionados:
+  - ead-platform/.../core/guards/auth.guard.ts (implementado)
+  - ead-platform/.../core/interceptors/auth.interceptor.ts (implementado)
+
+--------------------------------------------------------------------------------
+### T1.5 - AuthService Angular (token, claims, isLoggedIn)
+--------------------------------------------------------------------------------
+Status:         CONCLUÍDA (frontend)
+
+Evidências:
+  - AuthService.ts implementado com signals
+  - Armazena token em localStorage
+  - Métodos: login(), logout(), isLoggedIn(), getCurrentUser()
+  - Decodifica JWT para extrair claims
+  - getUserPerfil() retorna ALUNO/INSTRUTOR/ADMIN
+
+Problemas:
+  [INCONSISTENTE] AuthService espera resposta AuthResponse com token JWT
+  [INCONSISTENTE] Backend não retorna JWT, não tem login
+
+Arquivos relacionados:
+  - ead-platform/.../core/services/auth.service.ts (completo)
+
+--------------------------------------------------------------------------------
+### T1.6 - Páginas Angular Login/Cadastro
+--------------------------------------------------------------------------------
+Status:         CONCLUÍDA (frontend)
+
+Evidências:
+  - LoginComponent.ts com formulário reativo
+  - RegisterComponent.ts existe
+  - Validação inline: email, senha mín 6 chars
+  - Integração com AuthService
+  - Redirecionamento pós-login/cadastro
+
+Problemas:
+  [BLOQUEANTE] Formulário chama POST /auth/login que não existe no backend
+  [BLOQUEANTE] Cadastro chama POST /auth/registrar que não existe
+  [INCONSISTENTE] Erros de API esperados (401, 409) não são retornados pelo backend
+
+Arquivos relacionados:
+  - ead-platform/.../features/auth/login/login.component.ts
+  - ead-platform/.../features/auth/register/register.component.ts
+
+--------------------------------------------------------------------------------
+### T2.1 - Entidades Curso, Modulo, Aula + Enums
+--------------------------------------------------------------------------------
+Status:         PARCIAL (entidade básica existe, modelo incompleto)
+
+Evidências:
+  - Curso.java existe com: id, tituloCurso, descCurso
+  - TiposAssinatura enum existe (BASIC/PREMIUM/VIP)
+  
+  FALTAM (NÃO EXISTEM):
+  - Entidade Modulo
+  - Entidade Aula
+  - Enum StatusCurso (RASCUNHO, PUBLICADO, etc.)
+  - Enum ModalidadeCurso
+  - Enum TipoConteudo (VIDEO, PDF, LINK, etc.)
+  - VO NivelCurso
+  - Métodos de domínio: adicionarModulo(), aceitaNovasMatriculas()
+  - Atributos: publicoAlvo, conhecimentosPrevios, maxAlunos, minAlunos
+
+Problemas:
+  [CRÍTICO] Curso é entidade anêmica sem lógica de domínio
+  [CRÍTICO] Não há agregação Curso-Modulo-Aula
+  [CRÍTICO] Enums do domínio não existem
+  [CRÍTICO] Curso não é Aggregate Root como planejado
+
+Arquivos relacionados:
+  - src/main/java/.../domain/Curso.java (muito básico)
+  - src/main/java/.../domain/TiposAssinatura.java (existe)
+
+--------------------------------------------------------------------------------
+### T2.2 - Entidade Matricula + Métodos de Domínio
+--------------------------------------------------------------------------------
+Status:         PARCIAL (entidade existe, sem lógica)
+
+Evidências:
+  - Matricula.java existe com: id, alunoId, cursoId, dataMatricula, status
+  - MatriculaRepository interface existe
+  
+  FALTAM:
+  - Métodos de domínio: podeAvancarModulo(), concluir(), verificarAprovacao()
+  - Atributo: moduloAtual, notaFinal
+  - Enum StatusMatricula
+  - Unique constraint (aluno_id, curso_id)
+  - Lógica de negócio na entidade
+
+Problemas:
+  [CRÍTICO] Matricula é DTO anêmico, não um Aggregate Root
+  [CRÍTICO] Sem métodos de domínio - lógica deveria estar aqui
+  [CRÍTICO] Status é String, não enum tipado
+  [INCONSISTENTE] Repository existe mas service não usa métodos de domínio
+
+Arquivos relacionados:
+  - src/main/java/.../domain/Matricula.java (básico)
+  - src/main/java/.../repository/MatriculaRepository.java (interface vazia)
+
+--------------------------------------------------------------------------------
+### T2.3 - CursoController (GET /cursos)
+--------------------------------------------------------------------------------
+Status:         PARCIAL (controller existe, modelo incompleto)
+
+Evidências:
+  - CursoController.java existe
+  - Métodos: criar(), listar(), buscarPorId(), atualizar(), remover()
+  - Usa CursoService
+  
+  FALTAM:
+  - GET /cursos retorna apenas cursos PUBLICADOS (não há filtro por status)
+  - GET /cursos/{id} não retorna módulos, aulas
+  - Não há CursoResponseDTO - retorna entidade Curso diretamente
+  - Não expõe publicoAlvo, conhecimentosPrevios (nem existem na entidade)
+
+Problemas:
+  [CRÍTICO] Controller expõe entidade JPA diretamente (anti-pattern)
+  [CRÍTICO] Não há DTOs de resposta
+  [INCONSISTENTE] Frontend espera CursoSummary/cursoDetalhe, backend retorna Curso simples
+  [MENOR] Sem validação de status PUBLICADO
+
+Arquivos relacionados:
+  - src/main/java/.../controller/CursoController.java
+
+--------------------------------------------------------------------------------
+### T2.4 - MatriculaController + MatricularAlunoUseCase
+--------------------------------------------------------------------------------
+Status:         PARCIAL (controller existe, sem UseCase)
+
+Evidências:
+  - MatriculaController.java existe
+  - Métodos básicos de CRUD
+  
+  FALTAM:
+  - MatricularAlunoUseCase (NÃO EXISTE pacote application)
+  - Validação de saldo de cursosExtras
+  - GET /matriculas/{id}/progresso
+  - Verificação de matrícula duplicada (409)
+  - Controle de acesso por JWT (userId claim)
+
+Problemas:
+  [CRÍTICO] Não há camada application com UseCases
+  [CRÍTICO] Sem lógica de domínio no processo de matrícula
+  [BLOQUEANTE] Frontend chama POST /matriculas, backend pode não validar regras
+
+Arquivos relacionados:
+  - src/main/java/.../controller/MatriculaController.java
+
+--------------------------------------------------------------------------------
+### T2.5 - Seed de Dados (CommandLineRunner)
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - NÃO EXISTE CommandLineRunner no projeto
+  - NÃO EXISTE seed de cursos
+  - NÃO EXISTE usuário demo_aluno
+  - Banco inicia vazio
+
+Problemas:
+  [CRÍTICO] Sem dados para demonstração
+  [CRÍTICO] Testes manuais impossíveis sem seed
+  [INCONSISTENTE] Frontend espera cursos, backend não tem nenhum
+
+Arquivos relacionados:
+  - (nenhum arquivo de seed encontrado)
+
+--------------------------------------------------------------------------------
+### T2.6 - CourseService Angular + Catálogo
+--------------------------------------------------------------------------------
+Status:         CONCLUÍDA (frontend)
+
+Evidências:
+  - CursosService.ts implementado
+  - Método listar() com filtros
+  - CatálogoComponent.ts existe
+  - HttpClient integrado
+  - Mapeamento para CursoSummary
+
+Problemas:
+  [INCONSISTENTE] Frontend espera PagedResponse<CursoSummary>
+  [INCONSISTENTE] Backend retorna List<Curso> sem paginação
+  [INCONSISTENTE] Campos do CursoSummary não existem na entidade Curso
+
+Arquivos relacionados:
+  - ead-platform/.../core/services/cursos.service.ts
+  - ead-platform/.../features/learning/catalogo/catalogo.component.ts
+
+--------------------------------------------------------------------------------
+### T2.7 - Página de Detalhe do Curso + Matrícula
+--------------------------------------------------------------------------------
+Status:         PARCIAL (UI existe, integração quebrada)
+
+Evidências:
+  - CursoDetalheComponent.ts existe
+  - Exibe informações do curso
+  - Botão de matrícula presente
+  
+  FALTAM:
+  - Info-cards de nivelamento (publicoAlvo, conhecimentosPrevios)
+  - Lista de módulos e aulas (backend não retorna)
+  - Integração real com POST /matriculas
+
+Problemas:
+  [BLOQUEANTE] Backend não retorna estrutura de módulos/aulas
+  [BLOQUEANTE] Campos publicoAlvo/conhecimentosPrevios não existem
+
+Arquivos relacionados:
+  - ead-platform/.../features/learning/curso-detalhe/curso-detalhe.component.ts
+
+--------------------------------------------------------------------------------
+### T2.8 - EnrollmentService Angular
+--------------------------------------------------------------------------------
+Status:         PARCIAL (serviço existe, integração quebrada)
+
+Evidências:
+  - CursosService.matricular() existe
+  - Chama POST /matriculas
+  
+  FALTAM:
+  - Validação de erro 409 no frontend
+  - Integração com GET /matriculas/{id}/progresso
+
+Problemas:
+  [BLOQUEANTE] Backend não retorna MatriculaResponseDTO esperado
+  [INCONSISTENTE] payload esperado pelo backend não é claro
+
+Arquivos relacionados:
+  - ead-platform/.../core/services/cursos.service.ts (método matricular)
+
+
+================================================================================
+## Sprint 2 - Progressão e Atividades (12/05 - 18/05)
+### Bounded Contexts: academico
+### Meta: Progressão modular, upload ProjetoFinal, avaliação professor
+
+--------------------------------------------------------------------------------
+### T3.1 - ProgressaoModularService (RN011/RN024)
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - NÃO EXISTE pacote domain.service
+  - NÃO EXISTE ProgressaoModularService
+  - NÃO EXISTE método podeAvancarModulo()
+  - NÃO EXISTE método registrarConclusaoModulo()
+
+Problemas:
+  [CRÍTICO] Sem lógica de progressão modular
+  [CRÍTICO] RN011/RN024 não implementadas
+  [BLOQUEANTE] Aluno pode acessar qualquer módulo sem ordem
+
+Arquivos relacionados:
+  - (nenhum)
+
+--------------------------------------------------------------------------------
+### T3.2 - ConcluirModuloUseCase + Endpoint
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - NÃO EXISTE ConcluirModuloUseCase
+  - NÃO EXISTE endpoint POST /matriculas/{id}/modulos/{ordem}/concluir
+  - NÃO EXISTE pacote application.academico
+
+Problemas:
+  [CRÍTICO] Não há caso de uso para conclusão de módulo
+  [CRÍTICO] Não há evento CursoConcludoEvent (nem domínio de evento)
+
+Arquivos relacionados:
+  - (nenhum)
+
+--------------------------------------------------------------------------------
+### T3.3 - Lógica de Conclusão do Curso + Evento
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - Matricula.concluir() NÃO EXISTE
+  - CursoConcludoEvent NÃO EXISTE
+  - Não há ApplicationEventPublisher sendo usado
+  - Não há integração com gamificação
+
+Problemas:
+  [CRÍTICO] Curso nunca é marcado como CONCLUÍDO
+  [CRÍTICO] Evento de conclusão não é publicado
+  [BLOQUEANTE] Sprint 3 depende deste evento para recompensas
+
+Arquivos relacionados:
+  - (nenhum)
+
+--------------------------------------------------------------------------------
+### T3.4 - Player de Aula Angular (vídeo, PDF, tipo)
+--------------------------------------------------------------------------------
+Status:         PARCIAL (UI existe, dados incompletos)
+
+Evidências:
+  - CoursePlayerComponent.ts existe
+  - Template com iframe para vídeo
+  
+  FALTAM:
+  - Integração com TipoConteudo (não existe no backend)
+  - Botão "Marcar como concluída" funcional
+  - Dados de aulas do backend
+
+Problemas:
+  [BLOQUEANTE] Backend não tem entidade Aula
+  [BLOQUEANTE] Backend não retorna estrutura de aulas por módulo
+
+Arquivos relacionados:
+  - ead-platform/.../features/learning/course-player/course-player.component.ts
+
+--------------------------------------------------------------------------------
+### T3.5 - UI Estados dos Módulos (BLOQUEADO/EM_ANDAMENTO/CONCLUIDO)
+--------------------------------------------------------------------------------
+Status:         PARCIAL (UI existe, sem dados)
+
+Evidências:
+  - Componentes existem
+  - Estados visuais implementados no Angular
+  
+  FALTAM:
+  - GET /matriculas/{id}/progresso não retorna estados
+  - Backend não calcula estado dos módulos
+
+Problemas:
+  [BLOQUEANTE] Backend não tem lógica para determinar estado dos módulos
+
+Arquivos relacionados:
+  - (componentes Angular existem)
+
+--------------------------------------------------------------------------------
+### T3.6 - Ação "Marcar Aula como Concluída"
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - Botão existe na UI
+  - Não há endpoint backend para isso
+  - Não há serviço Angular chamando API
+
+Problemas:
+  [CRÍTICO] Funcionalidade não funciona end-to-end
+
+Arquivos relacionados:
+  - (nenhum backend)
+
+--------------------------------------------------------------------------------
+### T3.7 - ProgressService Angular
+--------------------------------------------------------------------------------
+Status:         PARCIAL (serviço existe, API não responde)
+
+Evidências:
+  - CursosService tem métodos relacionados
+  - Chama endpoints que não existem ou retornam dados incompletos
+
+Problemas:
+  [BLOQUEANTE] Backend não implementa endpoints esperados
+
+Arquivos relacionados:
+  - ead-platform/.../core/services/cursos.service.ts
+
+--------------------------------------------------------------------------------
+### T4.1 - Entidades ProjetoFinal + Avaliacao + StatusProjeto
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - NÃO EXISTE entidade ProjetoFinal
+  - NÃO EXISTE entidade Avaliacao
+  - NÃO EXISTE enum StatusProjeto
+  - NÃO EXISTE VO RespostaCorreta
+
+Problemas:
+  [CRÍTICO] Sem estrutura para submissão de projetos
+  [CRÍTICO] Sem estrutura para avaliação/gabarito
+  [CRÍTICO] RF043 (upload de arquivo) não implementado
+
+Arquivos relacionados:
+  - (nenhum)
+
+--------------------------------------------------------------------------------
+### T4.2 - ProjetoFinalController (Upload Multipart)
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - NÃO EXISTE ProjetoFinalController
+  - NÃO EXISTE endpoint POST /projetos
+  - NÃO EXISTE upload de arquivo no backend
+
+Problemas:
+  [CRÍTICO] Upload de arquivos não implementado
+  [CRÍTICO] Validação de tipo/tamanho não existe
+
+Arquivos relacionados:
+  - (nenhum)
+
+--------------------------------------------------------------------------------
+### T4.3 - PATCH /projetos/{id}/avaliar (Professor)
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - Endpoint não existe
+  - AvaliarProjetoUseCase não existe
+  - Validação por role PROFESSOR não existe (nem auth existe)
+
+Problemas:
+  [CRÍTICO] Professores não podem avaliar projetos
+  [CRÍTICO] Sem controle de acesso por curso/responsável
+
+Arquivos relacionados:
+  - (nenhum)
+
+--------------------------------------------------------------------------------
+### T4.4 - GET /cursos/{id}/projetos (Professor)
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - Endpoint não existe
+  - Listagem de projetos pendentes não existe
+
+Arquivos relacionados:
+  - (nenhum)
+
+--------------------------------------------------------------------------------
+### T4.5 - UI Submissão ProjetoFinal Angular
+--------------------------------------------------------------------------------
+Status:         PARCIAL (UI existe, backend não responde)
+
+Evidências:
+  - EnviarProjetoComponent.ts existe
+  - Template com área de upload
+  
+  FALTAM:
+  - Integração com backend (endpoint não existe)
+  - Drag-and-drop funcional
+  - Exibição de status de correção
+
+Problemas:
+  [BLOQUEANTE] Backend não tem endpoint de upload
+  [BLOQUEANTE] Backend não retorna status AGUARDANDO/REVISAO/APROVADO
+
+Arquivos relacionados:
+  - ead-platform/.../features/projects/enviar-projeto/enviar-projeto.component.ts
+
+--------------------------------------------------------------------------------
+### T4.6 - SubmissionService Angular
+--------------------------------------------------------------------------------
+Status:         PARCIAL (serviço existe, API não responde)
+
+Evidências:
+  - Serviços Angular existem
+  - Métodos chamam endpoints que não existem
+
+Arquivos relacionados:
+  - ead-platform/.../core/services/projetos.service.ts (se existir)
+
+--------------------------------------------------------------------------------
+### T4.7 - UI Professor (lista projetos + avaliação)
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - Componentes de professor existem no Angular
+  - InstructorDashboardComponent.ts existe
+  
+  FALTAM:
+  - Listagem de projetos pendentes
+  - Formulário de avaliação (nota + feedback)
+  - Role check PROFESSOR no backend (nem auth existe)
+
+Problemas:
+  [CRÍTICO] Backend não diferencia ALUNO de PROFESSOR
+  [CRÍTICO] Sem endpoints para professor
+
+Arquivos relacionados:
+  - ead-platform/.../features/instructor/dashboard/instructor-dashboard.component.ts
+
+
+================================================================================
+## Sprint 3 - Gamificação, Dashboard e Demo (19/05 - 25/05)
+### Bounded Contexts: gamificacao + usuario
+### Meta: Recompensas, upgrade Premium, dashboard, demo end-to-end
+
+--------------------------------------------------------------------------------
+### T5.1 - RecompensaService (listener CursoConcludoEvent)
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - NÃO EXISTE RecompensaService
+  - NÃO EXISTE pacote gamificacao
+  - NÃO EXISTE listener @EventListener
+  - NÃO EXISTE CursoConcludoEvent
+  - NÃO EXISTE entidade TransacaoMoeda
+  - NÃO EXISTE entidade Voucher
+
+Problemas:
+  [CRÍTICO] Sistema de gamificação não existe
+  [CRÍTICO] Eventos de domínio não existem
+  [CRÍTICO] RF002/RN002 (+3 cursos extras) não implementado
+
+Arquivos relacionados:
+  - (nenhum)
+
+--------------------------------------------------------------------------------
+### T5.2 - UpgradePlanoService + UpgradeParaPremiumUseCase
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - NÃO EXISTE UpgradePlanoService
+  - NÃO EXISTE UpgradeParaPremiumUseCase
+  - NÃO EXISTE método verificarEAplicarUpgrade()
+  - NÃO EXISTE Aluno.fazerUpgradePremium()
+  - Entidade Aluno não existe (só existe Usuario genérico)
+
+Problemas:
+  [CRÍTICO] Upgrade para Premium não existe
+  [CRÍTICO] RN004 (12 cursos → Premium) não implementada
+  [CRÍTICO] tipoPlano está em Usuario, mas não há lógica de upgrade
+
+Arquivos relacionados:
+  - (nenhum)
+
+--------------------------------------------------------------------------------
+### T5.3 - Integração End-to-End (academico → gamificacao)
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - Não há evento CursoConcludoEvent
+  - Não há listener
+  - Pacotes academico e gamificacao não existem como separados
+  - Todo código está em pacote único "com.exemplo.usuariosimples"
+
+Problemas:
+  [CRÍTICO] Não há separação de Bounded Contexts
+  [CRÍTICO] Acoplamento direto, não há eventos de domínio
+  [CRÍTICO] DDD não implementado
+
+Arquivos relacionados:
+  - (nenhum)
+
+--------------------------------------------------------------------------------
+### T5.4 - Seed Demo (demo_aluno com 11 cursos)
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - Não há seed nenhum
+  - Não há usuário demo_aluno
+  - Não há cursos pré-concluídos
+
+Problemas:
+  [CRÍTICO] Demo ao vivo impossível
+  [CRÍTICO] Upgrade Premium não pode ser demonstrado
+
+Arquivos relacionados:
+  - (nenhum)
+
+--------------------------------------------------------------------------------
+### T6.1 - GET /alunos/{id}/progresso + GET /gamificacao/moedas
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - NÃO EXISTE AlunoController
+  - NÃO EXISTE GamificacaoController
+  - NÃO EXISTE AlunoResponseDTO
+  - NÃO EXISTE SaldoMoedasResponseDTO
+  - Endpoint /alunos/{id}/progresso não existe
+
+Problemas:
+  [CRÍTICO] Dashboard do aluno não tem dados no backend
+  [CRÍTICO] Gamificação não existe
+
+Arquivos relacionados:
+  - (nenhum)
+
+--------------------------------------------------------------------------------
+### T6.2 - Dashboard Angular do Aluno
+--------------------------------------------------------------------------------
+Status:         PARCIAL (UI existe, sem dados)
+
+Evidências:
+  - DashboardComponent.ts existe
+  - Template com cards de métricas
+  
+  FALTAM:
+  - Dados do backend (endpoint não existe)
+  - Badge de plano PREMIUM/BASICO
+  - Tabela de matrículas com histórico
+
+Problemas:
+  [BLOQUEANTE] Backend não retorna AlunoResponseDTO
+  [BLOQUEANTE] GET /alunos/{id}/progresso não existe
+
+Arquivos relacionados:
+  - ead-platform/.../features/dashboard/dashboard.component.ts
+
+--------------------------------------------------------------------------------
+### T6.3 - Toasts/Notificações Angular
+--------------------------------------------------------------------------------
+Status:         NÃO INICIADA
+
+Evidências:
+  - Sistema de toast não implementado
+  - Notificações de recompensa não existem
+  - Integração com resposta de conclusão não existe
+
+Problemas:
+  [CRÍTICO] Feedback visual de recompensas não existe
+  [CRÍTICO] Toast "Parabéns, você é Premium!" não existe
+
+Arquivos relacionados:
+  - (nenhum)
+
+
+================================================================================
+# FUNCIONALIDADES REALMENTE OPERACIONAIS
+================================================================================
+
+BACKEND (Spring Boot):
+  [OK] CRUD de Usuário (criar, listar, buscar, atualizar, deletar)
+       - Endpoint: /usuarios
+       - Funciona com H2 ou PostgreSQL
+       - SEM autenticação, SEM validação de domínio
+
+  [OK] CRUD de Curso (criar, listar, buscar, atualizar, deletar)
+       - Endpoint: /cursos
+       - Entidade básica com titulo e descrição
+       - SEM módulos, SEM aulas, SEM status
+
+  [OK] CRUD de Matrícula (operações básicas)
+       - Endpoint: /matriculas
+       - Entidade anêmica, sem lógica de domínio
+
+  [OK] CRUD de Assinatura
+       - Endpoint: /assinaturas
+       - Entidade com tipo (BASIC/PREMIUM/VIP) e data
+
+  [OK] Swagger UI
+       - Disponível em /swagger-ui.html
+       - Documenta endpoints existentes
+
+  [OK] Docker Compose
+       - PostgreSQL rodando em container
+       - pgAdmin disponível
+       - App containerizado (mas sem frontend integrado)
+
+FRONTEND (Angular):
+  [OK] Módulo de Auth (Login/Cadastro)
+       - Componentes implementados
+       - Formulários reativos com validação
+       - NÃO FUNCIONA (backend não tem endpoints /auth/*)
+
+  [OK] Catálogo de Cursos
+       - CourseService implementado
+       - CatálogoComponent exibe cursos
+       - FUNCIONA PARCIALMENTE (dados limitados do backend)
+
+  [OK] Guards e Interceptors
+       - AuthGuard implementado
+       - HttpInterceptor injeta token
+       - SEM EFEITO (backend não valida JWT)
+
+  [OK] Rotas e Navegação
+       - Router configurado
+       - Rotas protegidas e públicas
+       - Estrutura completa de navegação
+
+  [OK] Serviços Angular
+       - AuthService, CursosService implementados
+       - Models TypeScript definidos
+       - SEM RESPOSTA do backend correspondente
+
+  [OK] Componentes de Instrutor
+       - InstructorDashboardComponent
+       - CriarCursoComponent, EditarCursoComponent
+       - SEM BACKEND correspondente
+
+  [OK] Componentes de Projetos
+       - EnviarProjetoComponent
+       - SEM BACKEND correspondente
+
+  [OK] Fluxo de Matrícula
+       - SelectPlanComponent, PersonalDataComponent, PaymentComponent
+       - SEM BACKEND correspondente
+
+
+================================================================================
+# FUNCIONALIDADES PARCIAIS
+================================================================================
+
+  [PARCIAL] Entidades de Domínio
+    - Existem: Usuario, Curso, Matricula, Assinatura, TiposAssinatura
+    - Faltam: Aluno, Professor, Modulo, Aula, ProjetoFinal, Avaliacao
+    - Entidades são anêmicas (sem lógica de domínio)
+
+  [PARCIAL] Value Objects
+    - Existem: EmailUsuario, NomeUsuario, SenhaCriptografada
+    - PROBLEMA: NÃO SÃO USADOS nas entidades
+    - Entidades usam String direto
+
+  [PARCIAL] Repositories
+    - Interfaces existem: UsuarioRepository, CursoRepository, etc.
+    - Spring Data JPA funciona
+    - SEM métodos customizados de domínio
+
+  [PARCIAL] Controllers
+    - CRUDs básicos existem
+    - SEM controllers de domínio (Auth, ProjetoFinal, Gamificacao)
+    - SEM DTOs de resposta (retornam entidades JPA)
+
+  [PARCIAL] Frontend Angular
+    - UI implementada para maioria das features
+    - Serviços chamam endpoints que não existem
+    - Models TypeScript mais ricos que backend Java
+
+
+================================================================================
+# FUNCIONALIDADES AUSENTES
+================================================================================
+
+CRÍTICAS (bloqueiam MVP):
+  [AUSENTE] Autenticação e Autorização (Spring Security + JWT)
+  [AUSENTE] Hash de senha (BCrypt)
+  [AUSENTE] Controle de acesso por roles (ALUNO/PROFESSOR/ADMIN)
+  [AUSENTE] Entidade Aluno (como Aggregate Root)
+  [AUSENTE] Entidade Professor
+  [AUSENTE] Entidade Modulo
+  [AUSENTE] Entidade Aula
+  [AUSENTE] Entidade ProjetoFinal
+  [AUSENTE] Entidade Avaliacao
+  [AUSENTE] Enums de domínio (StatusCurso, StatusMatricula, TipoConteudo, etc.)
+  [AUSENTE] Camada application (UseCases)
+  [AUSENTE] Camada domain.service (Domain Services)
+  [AUSENTE] Eventos de domínio (CursoConcluídoEvent)
+  [AUSENTE] Gamificação (RecompensaService, TransacaoMoeda, Voucher)
+  [AUSENTE] Upgrade automático para Premium
+  [AUSENTE] Seed de dados para demo
+  [AUSENTE] Upload de arquivos (ProjetoFinal)
+  [AUSENTE] DTOs de resposta
+
+SECUNDÁRIAS:
+  [AUSENTE] Fórum (Bounded Context engajamento)
+  [AUSENTE] Financeiro real (gateway de pagamento)
+  [AUSENTE] Pipeline de Admin
+
+
+================================================================================
+# PROBLEMAS ARQUITETURAIS
+================================================================================
+
+1. ARQUITETURA DDD NÃO IMPLEMENTADA
+   - Planejamento exige: domain, application, infrastructure, interfaces.rest
+   - Implementação atual: controller, service, repository, domain (misturado)
+   - Não há separação de responsabilidades
+   - Entidades são anêmicas (sem lógica de domínio)
+
+2. PACOTE infrastructure NÃO EXISTE
+   - Sem infrastructure.security (JwtAuthFilter, SecurityConfig)
+   - Sem infrastructure.persistence.jpa (implementações de repositório)
+   - Sem infrastructure.messaging (notificações)
+
+3. PACOTE application NÃO EXISTE
+   - Sem UseCases (ConcluirModuloUseCase, MatricularAlunoUseCase, etc.)
+   - Lógica de aplicação está em Services (camada de serviço anêmica)
+
+4. DOMÍNIO ANÊMICO
+   - Entidades são DTOs com getters/setters
+   - Sem métodos de domínio (podeAvancarModulo, concluir, verificarAprovacao)
+   - Regras de negócio no controller/service, não na entidade
+
+5. VALUE OBJECTS NÃO USADOS
+   - EmailUsuario, NomeUsuario, SenhaCriptografada existem
+   - Entidade Usuario usa String direto para email, nome, senha
+   - VOs deveriam ser os tipos dos atributos
+
+6. SEM EVENTOS DE DOMÍNIO
+   - CursoConcluídoEvent não existe
+   - Sem @EventListener para gamificação
+   - Acoplamento direto entre contexts (quando existir)
+
+7. SEM SEPARAÇÃO DE BOUNDED CONTEXTS
+   - Todo código em único pacote: com.exemplo.usuariosimples
+   - Deveria ter: usuario, academico, gamificacao, financeiro, engajamento
+   - Contextos misturados impedem evolução independente
+
+8. LONG EM VEZ DE UUID
+   - Entidades usam Long id (sequencial, inseguro)
+   - Planejamento exige UUID para todos os aggregates
+   - Aluno deveria ter id UUID
+
+9. SEM SEGURANÇA
+   - spring-boot-starter-security não está no pom.xml
+   - Senhas em texto puro
+   - APIs públicas sem autenticação
+
+10. FRONTEND MAIS AVANÇADO QUE BACKEND
+    - Angular tem models ricos, serviços completos
+    - Backend não responde endpoints esperados
+    - Inconsistência gera erros em produção
+
+
+================================================================================
+# DÍVIDAS TÉCNICAS
+================================================================================
+
+DÍVIDAS CRÍTICAS (impedem funcionamento):
+  [CRÍTICO] Implementar Spring Security + JWT
+  [CRÍTICO] Refatorar entidades para DDD (Pessoa → Aluno/Professor)
+  [CRÍTICO] Criar camada application com UseCases
+  [CRÍTICO] Implementar domínio rico (métodos de negócio nas entidades)
+  [CRÍTICO] Usar Value Objects nas entidades
+  [CRÍTICO] Criar eventos de domínio (CursoConcluídoEvent)
+  [CRÍTICO] Implementar gamificação (listener de eventos)
+  [CRÍTICO] Seed de dados para demonstração
+
+DÍVIDAS IMPORTANTES (impactam qualidade):
+  [IMPORTANTE] Migrar Long → UUID para aggregates
+  [IMPORTANTE] Criar DTOs de resposta (não expor entidades)
+  [IMPORTANTE] Implementar upload de arquivos
+  [IMPORTANTE] Adicionar validações de domínio
+  [IMPORTANTE] Separar bounded contexts em pacotes
+
+DÍVIDAS SECUNDÁRIAS (melhorias):
+  [SECUNDÁRIO] Adicionar testes unitários
+  [SECUNDÁRIO] Adicionar testes de integração
+  [SECUNDÁRIO] Configurar CI/CD
+  [SECUNDÁRIO] Documentação de APIs (além do Swagger)
+
+
+================================================================================
+# INCONSISTÊNCIAS ENTRE DOCUMENTAÇÃO E CÓDIGO
+================================================================================
+
+1. ENTIDADE ALUNO
+   - Planejamento: Aluno como Aggregate Root, herda de Pessoa, id UUID
+   - Código: Usuario com Long id, sem herança, sem tipoPlano integrado
+
+2. AUTENTICAÇÃO JWT
+   - Planejamento: JwtAuthFilter, SecurityConfig, roles ALUNO/PROFESSOR/ADMIN
+   - Código: Sem segurança, sem JWT, sem roles
+
+3. VALUE OBJECTS
+   - Planejamento: Email, NomeCompleto como Java Records, usados nas entidades
+   - Código: VOs existem mas não são usados, entidades usam String
+
+4. USE CASES
+   - Planejamento: ConcluirModuloUseCase, MatricularAlunoUseCase, etc.
+   - Código: Sem camada application, lógica em services anêmicos
+
+5. EVENTOS DE DOMÍNIO
+   - Planejamento: CursoConcluídoEvent publicado ao concluir curso
+   - Código: Sem eventos, sem ApplicationEventPublisher
+
+6. GAMIFICAÇÃO
+   - Planejamento: RecompensaService, UpgradePlanoService, TransacaoMoeda
+   - Código: Pacote gamificacao não existe
+
+7. ENUMS
+   - Planejamento: StatusCurso, StatusMatricula, TipoConteudo, StatusProjeto
+   - Código: Apenas TiposAssinatura existe
+
+8. ENDPOINTS
+   - Planejamento: /auth/login, /auth/register, /projetos, /gamificacao/*
+   - Código: Apenas /usuarios, /cursos, /matriculas, /assinaturas (CRUDs)
+
+9. SEED
+   - Planejamento: 3 cursos PUBLICADOS, demo_aluno com 11 cursos concluídos
+   - Código: Sem seed, banco vazio
+
+10. ANGULAR MODELS vs BACKEND DTOs
+    - Planejamento: Alinhamento entre TypeScript interfaces e Java DTOs
+    - Código: Angular tem models ricos, backend retorna entidades JPA simples
+
+
+================================================================================
+# O QUE FALTA PARA FINALIZAR A SPRINT ATUAL
+================================================================================
+
+A Sprint 1 NÃO ESTÁ CONCLUÍDA. Na verdade, NENHUMA sprint está concluída.
+
+PARA "COMPLETAR" A SPRINT 1 (mínimo viável):
+
+  [ ] T1.1: Refatorar Usuario → Pessoa (abstract) + Aluno/Professor/Admin
+      - Criar classe abstrata Pessoa com id UUID
+      - Criar Aluno, Professor, Administrador estendendo Pessoa
+      - Implementar @Inheritance(strategy = JOINED)
+      - Usar VOs Email e NomeCompleto nas entidades
+      - Adicionar tipoPlano (enum) em Aluno
+
+  [ ] T1.2: Implementar Spring Security + JWT
+      - Adicionar spring-boot-starter-security no pom.xml
+      - Criar JwtAuthFilter
+      - Criar SecurityConfig com roles
+      - Implementar BCryptPasswordEncoder
+      - Configurar endpoints públicos (/auth/**) e protegidos
+
+  [ ] T1.3: Criar AuthController + AuthUseCase
+      - Criar pacote application.usuario
+      - Criar AuthUseCase com register() e login()
+      - Criar AuthController com POST /auth/register e /auth/login
+      - Retornar JWT no login
+      - Validar email único, hash de senha
+
+  [ ] T2.1: Completar entidade Curso
+      - Adicionar enums: StatusCurso, ModalidadeCurso, TipoConteudo
+      - Criar entidade Modulo (com ordem, avaliação)
+      - Criar entidade Aula (com tipoConteudo, url)
+      - Adicionar atributos: publicoAlvo, conhecimentosPrevios, maxAlunos
+      - Implementar métodos: adicionarModulo(), aceitaNovasMatriculas()
+
+  [ ] T2.2: Completar entidade Matricula
+      - Adicionar enum StatusMatricula
+      - Adicionar atributos: moduloAtual, notaFinal
+      - Implementar métodos: podeAvancarModulo(), concluir(), verificarAprovacao()
+      - Adicionar unique constraint (aluno_id, curso_id)
+
+  [ ] T2.5: Criar Seed de Dados
+      - Implementar CommandLineRunner
+      - Criar 3 cursos PUBLICADOS com módulos e aulas
+      - Criar demo_aluno com 11 cursos concluídos
+
+MÍNIMO PARA DEMONSTRAÇÃO (hackathon):
+  [ ] Autenticação funcionando (login gera JWT)
+  [ ] Catálogo exibe cursos do seed
+  [ ] Matrícula cria registro
+  [ ] Demo_aluno pode "concluir" curso e ver upgrade para Premium
+  [ ] Frontend Angular integrado com backend
+
+TEMPO ESTIMADO: 40-60 horas de desenvolvimento focado
+
+
+================================================================================
+# PRÓXIMOS PASSOS RECOMENDADOS
+================================================================================
+
+PRIORIDADE 1 - FUNDAÇÃO (2-3 dias):
+  1. Adicionar spring-boot-starter-security ao pom.xml
+  2. Criar infrastructure.security (JwtAuthFilter, SecurityConfig)
+  3. Implementar BCrypt para senhas
+  4. Criar AuthController + AuthUseCase
+  5. Testar login/register via Swagger
+
+PRIORIDADE 2 - DOMÍNIO (3-4 dias):
+  6. Refatorar Usuario → Pessoa + Aluno/Professor/Admin
+  7. Migrar Long → UUID
+  8. Implementar VOs Email, NomeCompleto nas entidades
+  9. Criar enums de domínio (StatusCurso, StatusMatricula, etc.)
+  10. Criar entidades Modulo, Aula
+
+PRIORIDADE 3 - CASOS DE USO (2-3 dias):
+  11. Criar camada application com UseCases
+  12. Implementar MatricularAlunoUseCase
+  13. Implementar ConcluirModuloUseCase
+  14. Criar evento CursoConcluídoEvent
+
+PRIORIDADE 4 - GAMIFICAÇÃO (1-2 dias):
+  15. Criar RecompensaService com @EventListener
+  16. Implementar UpgradePlanoService
+  17. Criar entidade TransacaoMoeda
+
+PRIORIDADE 5 - DEMO (1 dia):
+  18. Criar Seed com demo_aluno
+  19. Testar fluxo end-to-end
+  20. Ajustar frontend para integrar com backend real
+
+TOTAL ESTIMADO: 9-13 dias de desenvolvimento full-time
+
+
+================================================================================
+# CONCLUSÃO
+================================================================================
+
+O projeto está em estado CRÍTICO. A arquitetura DDD planejada NÃO FOI
+IMPLEMENTADA. O código atual é um CRUD simples com Spring Data JPA básico,
+sem segurança, sem domínio rico, sem eventos, sem gamificação.
+
+O frontend Angular está significativamente mais avançado que o backend,
+com models, serviços e componentes implementados que esperam endpoints
+e comportamentos que não existem no backend.
+
+PARA A DEMONSTRAÇÃO (25/05):
+  - É necessário focar no MÍNIMO VIÁVEL: auth + catálogo + matrícula + demo
+  - Hackear algumas features se necessário (ex: seed manual no banco)
+  - Priorizar fluxo end-to-end do demo_aluno → upgrade Premium
+
+RECOMENDAÇÃO:
+  - Refatorar urgentemente para DDD (pelo menos o básico)
+  - Implementar segurança (JWT) antes de qualquer outra coisa
+  - Criar seed de dados para possibilitar testes manuais
+  - Alinhar frontend com backend (ou vice-versa)
+
+RISCO: ALTO - Sem intervenção imediata, o projeto não estará pronto
+para a entrega (25/05).
+
+================================================================================
+FIM DA ANÁLISE
+================================================================================

@@ -1,0 +1,10 @@
+import { bootstrapApplication } from '@angular/platform-browser';
+import { AppComponent } from './app/app.component';
+import { config } from './app/app.config.server';
+
+const bootstrap = (context?: any) => {
+  // O Angular 19 SSR exige passar o contexto se existir, usando um internal signature
+  return (bootstrapApplication as any)(AppComponent, config, context);
+};
+
+export default bootstrap;

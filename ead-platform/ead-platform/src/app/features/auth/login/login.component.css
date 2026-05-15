@@ -1,0 +1,175 @@
+/* ── Tokens ───────────────────────────────────────────────── */
+:host {
+  --cor-primaria:   #2563eb;
+  --cor-prim-hover: #1d4ed8;
+  --cor-texto:      #111827;
+  --cor-subtexto:   #6b7280;
+  --cor-borda:      #e5e7eb;
+  --cor-fundo:      #d1d5db;
+  --cor-card:       #ffffff;
+  --cor-danger:     #ef4444;
+  --cor-danger-bg:  #fef2f2;
+  --raio:           16px;
+  --raio-input:     50px;
+  --transicao:      .18s ease;
+
+  display: flex;
+  min-height: 100dvh;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ── Página ───────────────────────────────────────────────── */
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 2rem 1rem;
+  background: var(--cor-fundo);
+}
+
+/* ── Card central ─────────────────────────────────────────── */
+.card {
+  background: var(--cor-card);
+  border-radius: var(--raio);
+  padding: 2.5rem 2.25rem;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08), 0 16px 48px rgba(0,0,0,.1);
+}
+
+/* ── Títulos ──────────────────────────────────────────────── */
+.titulo {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -.5px;
+  margin: 0 0 .375rem;
+  color: var(--cor-texto);
+}
+.subtitulo {
+  font-size: .9rem;
+  color: var(--cor-subtexto);
+  margin: 0 0 1.875rem;
+  line-height: 1.55;
+}
+
+/* ── Campos ───────────────────────────────────────────────── */
+.campo { display: flex; flex-direction: column; gap: .4rem; margin-bottom: 1.125rem; }
+.label {
+  font-size: .875rem;
+  font-weight: 500;
+  color: var(--cor-texto);
+}
+.input {
+  width: 100%;
+  padding: .75rem 1.125rem;
+  border: none;
+  background: #f3f4f6;
+  border-radius: var(--raio-input);
+  font-size: .9375rem;
+  color: var(--cor-texto);
+  outline: none;
+  transition: box-shadow var(--transicao), background var(--transicao);
+  box-sizing: border-box;
+}
+.input::placeholder { color: #9ca3af; }
+.input:focus {
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--cor-primaria);
+}
+.input--erro {
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--cor-danger);
+}
+.erro-msg {
+  font-size: .8rem;
+  color: var(--cor-danger);
+  padding-left: .25rem;
+}
+
+/* ── Alerta do servidor ───────────────────────────────────── */
+.alerta-erro {
+  background: var(--cor-danger-bg);
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: var(--cor-danger);
+  font-size: .875rem;
+  font-weight: 500;
+  text-align: center;
+  padding: .75rem 1rem;
+  margin-bottom: 1.125rem;
+}
+
+/* ── Botões ───────────────────────────────────────────────── */
+.btn-primario {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  width: 100%;
+  padding: .9rem 1.5rem;
+  background: var(--cor-primaria);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  border: none;
+  border-radius: var(--raio-input);
+  cursor: pointer;
+  margin-top: .375rem;
+  transition: background var(--transicao), transform var(--transicao), box-shadow var(--transicao);
+}
+.btn-primario:hover:not(:disabled) {
+  background: var(--cor-prim-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(37,99,235,.35);
+}
+.btn-primario:disabled { opacity: .65; cursor: not-allowed; }
+
+/* Spinner inline */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Rodapé do card ───────────────────────────────────────── */
+.rodape-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .75rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--cor-borda);
+  font-size: .875rem;
+  color: var(--cor-subtexto);
+}
+.btn-secundario {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: .625rem 2rem;
+  border: 1.5px solid var(--cor-texto);
+  border-radius: var(--raio-input);
+  color: var(--cor-texto);
+  font-size: .875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--transicao), border-color var(--transicao), color var(--transicao);
+}
+.btn-secundario:hover {
+  border-color: var(--cor-primaria);
+  color: var(--cor-primaria);
+  background: #eff6ff;
+}
+
+/* ── Responsivo ───────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .card { padding: 2rem 1.25rem; border-radius: 12px; }
+  .titulo { font-size: 1.625rem; }
+}

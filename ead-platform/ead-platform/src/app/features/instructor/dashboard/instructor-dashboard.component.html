@@ -1,0 +1,300 @@
+<div class="layout" role="main">
+
+  <!-- ══ Sidebar ══════════════════════════════════════════ -->
+  <aside class="sidebar" role="navigation" aria-label="Menu do instrutor">
+    <div class="sidebar__marca">
+      <div class="sidebar__logo" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+          <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+        </svg>
+      </div>
+      <div>
+        <span class="sidebar__nome">Academia</span>
+        <span class="sidebar__cargo">INSTRUTOR SÊNIOR</span>
+      </div>
+    </div>
+
+    <nav>
+      <ul class="sidebar__nav" role="list">
+        <li>
+          <a routerLink="/instrutor/dashboard"
+             class="sidebar__link sidebar__link--ativo"
+             aria-current="page">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            Meus Cursos
+          </a>
+        </li>
+        <li>
+          <a routerLink="/instrutor/estudantes" class="sidebar__link">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            Estudantes
+          </a>
+        </li>
+        <li>
+          <a routerLink="/instrutor/analytics" class="sidebar__link">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+              <line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+            Relatórios
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <div class="sidebar__rodape">
+      <button class="btn-sidebar-criar" (click)="criarNovoCurso()" aria-label="Criar novo curso">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Criar Novo Curso
+      </button>
+
+      @if (auth.usuario(); as user) {
+        <div class="sidebar__perfil">
+          <div class="avatar avatar--pequeno" aria-hidden="true">
+            {{ user.nomeCompleto.charAt(0) }}
+          </div>
+          <div>
+            <span class="sidebar__usuario-nome">{{ user.nomeCompleto }}</span>
+            <span class="sidebar__usuario-cargo">Instrutor Sênior</span>
+          </div>
+        </div>
+      }
+    </div>
+  </aside>
+
+  <!-- ══ Área principal ════════════════════════════════════ -->
+  <div class="principal">
+
+    <!-- ── Top bar ─────────────────────────────────────── -->
+    <header class="topbar" role="banner">
+      <div class="topbar__titulo-bloco">
+        <nav class="breadcrumb" aria-label="Navegação estrutural">
+          <span class="breadcrumb__item">LUMEN</span>
+          <span class="breadcrumb__sep" aria-hidden="true">/</span>
+          <span class="breadcrumb__item breadcrumb__item--ativo">CURRÍCULO</span>
+        </nav>
+        <h1 class="topbar__titulo">Gerenciar seu Currículo</h1>
+      </div>
+
+      <div class="topbar__acoes">
+        <div class="busca" role="search">
+          <svg class="busca__icone" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            type="search"
+            placeholder="Buscar no currículo..."
+            class="busca__input"
+            aria-label="Buscar cursos"
+            [value]="busca()"
+            (input)="busca.set($any($event.target).value)"
+          />
+        </div>
+
+        <button class="icon-btn" aria-label="Notificações">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </button>
+        <button class="icon-btn" aria-label="Configurações">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+
+        <button class="btn-primario" (click)="criarNovoCurso()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Criar Novo Curso
+        </button>
+      </div>
+    </header>
+
+    <!-- ── Conteúdo ─────────────────────────────────────── -->
+    <main class="conteudo">
+
+      @switch (estado().status) {
+
+        @case ('carregando') {
+          <!-- Skeletons métricas -->
+          <div class="grade-metricas" aria-busy="true" aria-label="Carregando métricas">
+            @for (_ of [1,2,3]; track $index) {
+              <div class="skeleton-metrica" aria-hidden="true">
+                <div class="skeleton skeleton--texto-sm"></div>
+                <div class="skeleton skeleton--numero"></div>
+                <div class="skeleton skeleton--texto-sm" style="width:60%"></div>
+              </div>
+            }
+          </div>
+          <!-- Skeletons cards -->
+          <div class="grade-cursos" aria-hidden="true">
+            @for (_ of [1,2,3,4]; track $index) {
+              <div class="skeleton-card-curso">
+                <div class="skeleton skeleton--img-curso"></div>
+                <div class="skeleton-card-curso__corpo">
+                  <div class="skeleton skeleton--titulo-curso"></div>
+                  <div class="skeleton skeleton--meta-curso"></div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        @case ('erro') {
+          <div class="estado-erro" role="alert">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--cor-danger)" stroke-width="1.5" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <p>{{ $any(estado()).mensagem }}</p>
+          </div>
+        }
+
+        @case ('sucesso') {
+          <!-- ── Métricas ─────────────────────────────── -->
+          <div class="grade-metricas" role="region" aria-label="Métricas do instrutor">
+            @for (m of metricasFormatadas(); track m.label) {
+              <div class="card-metrica" [attr.aria-label]="m.label + ': ' + m.valor">
+                <div class="card-metrica__topo">
+                  <div>
+                    <span class="metrica-label">{{ m.label }}</span>
+                    <strong class="metrica-valor">{{ m.valor }}</strong>
+                    <span class="metrica-desc">{{ m.descricao }}</span>
+                  </div>
+                  <div class="metrica-icone" [style.background]="m.cor" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="1.8">
+                      <path [attr.d]="m.iconePath"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- ── Grade de cursos ─────────────────────── -->
+          <section class="grade-cursos" aria-label="Meus cursos">
+            @for (curso of cursosFiltrados(); track trackByCurso($index, curso)) {
+              <article
+                class="card-curso"
+                [attr.aria-label]="'Curso: ' + curso.titulo"
+              >
+                <!-- Imagem -->
+                <div class="card-curso__imagem">
+                  @if (curso.capUrl) {
+                    <img
+                      [src]="curso.capUrl"
+                      [alt]="'Capa do curso ' + curso.titulo"
+                      loading="lazy"
+                      width="400"
+                      height="220"
+                    />
+                  } @else {
+                    <div class="card-curso__imagem-placeholder" aria-hidden="true">
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                      </svg>
+                    </div>
+                  }
+                  <span class="badge-status badge-status--{{ statusVariante(curso.status) }}">
+                    {{ statusLabel(curso.status) }}
+                  </span>
+                </div>
+
+                <!-- Corpo -->
+                <div class="card-curso__corpo">
+                  <h2 class="card-curso__titulo">{{ curso.titulo }}</h2>
+
+                  <div class="card-curso__meta">
+                    <span class="meta-icone-txt" aria-label="{{ formatarAlunos(curso.totalAlunos) }} alunos">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                      </svg>
+                      {{ formatarAlunos(curso.totalAlunos) }}
+                    </span>
+                    <span class="meta-icone-txt" aria-label="Avaliação: {{ formatarAvaliacao(curso.avaliacao) }}">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                      </svg>
+                      {{ formatarAvaliacao(curso.avaliacao) }}
+                    </span>
+                  </div>
+
+                  <div class="card-curso__acoes">
+                    <button
+                      class="btn-icone"
+                      (click)="editarCurso(curso.id)"
+                      [attr.aria-label]="'Editar ' + curso.titulo"
+                      title="Editar"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </button>
+                    <button
+                      class="btn-icone btn-icone--perigo"
+                      (click)="confirmarExclusao(curso.id)"
+                      [attr.aria-label]="'Excluir ' + curso.titulo"
+                      title="Excluir"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                        <path d="M10 11v6M14 11v6"/>
+                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </article>
+            }
+
+            <!-- Card de novo módulo -->
+            <button
+              class="card-novo"
+              (click)="criarNovoCurso()"
+              aria-label="Criar novo módulo ou curso"
+            >
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="16"/>
+                <line x1="8" y1="12" x2="16" y2="12"/>
+              </svg>
+              <span>Criar Novo Módulo</span>
+            </button>
+          </section>
+
+          <!-- ── Ver mais ─────────────────────────────── -->
+          @if ($any(estado()).dados.cursos.length > cursosFiltrados().length || cursosFiltrados().length >= 5) {
+            <div class="ver-mais-bloco">
+              <button class="btn-ver-mais">
+                Ver Mais Cursos
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+            </div>
+          }
+        }
+
+      }
+    </main>
+  </div>
+
+</div>

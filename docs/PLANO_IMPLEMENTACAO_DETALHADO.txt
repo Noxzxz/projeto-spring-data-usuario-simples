@@ -1,0 +1,694 @@
+================================================================================
+PLANO DE IMPLEMENTAÇÃO DETALHADO
+Projeto EAD Platform - Prioridades para Demo (25/05)
+================================================================================
+
+CONTEXTO: Projeto Acadêmico
+- Segurança: Importante, mas não crítica (não há dados reais sensíveis)
+- Foco: Funcionalidade demonstrável para a banca
+- Prazo: 25/05/2025
+- Equipe: Ihago (SM + Backend), Ihan (Backend), Evelyn (Frontend), Madu (Frontend Support)
+
+================================================================================
+PRIORIDADE 1 - FUNDAÇÃO (2-3 dias)
+================================================================================
+
+Estas tasks são PRÉ-REQUISITO para todo o resto. Sem autenticação, o sistema
+não tem controle de acesso e qualquer usuário pode acessar qualquer recurso.
+
+--------------------------------------------------------------------------------
+Task 1.1 - Adicionar spring-boot-starter-security e JWT ao pom.xml
+--------------------------------------------------------------------------------
+
+Objetivo: Habilitar segurança na aplicação com Spring Security e suporte a JWT
+
+Critérios de Aceitação:
+• Dependência spring-boot-starter-security adicionada ao pom.xml (sem versão, herda do parent)
+• Dependências jjwt-api, jjwt-impl, jjwt-jackson versão 0.11.5 adicionadas
+• Comando mvn clean compile executa sem erros
+• Aplicação inicia sem falhas de dependência
+
+Teste Básico: mvn clean compile → BUILD SUCCESS
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Todas as tasks de autenticação e autorização
+
+--------------------------------------------------------------------------------
+Task 1.2 - Criar infraestrutura de segurança (JwtTokenProvider, JwtAuthFilter, SecurityConfig)
+--------------------------------------------------------------------------------
+
+Objetivo: Implementar autenticação stateless com JWT e configuração de segurança
+
+Critérios de Aceitação:
+• JwtTokenProvider em infrastructure.security com métodos: generateToken(), getEmailFromToken(), getUserIdFromToken(), getPerfilFromToken(), validateToken()
+• JwtAuthFilter em infrastructure.security estende OncePerRequestFilter, extrai token do header Authorization: Bearer, valida e seta authentication no SecurityContextHolder
+• SecurityConfig em infrastructure.security com @EnableWebSecurity, @EnableMethodSecurity, SessionCreationPolicy.STATELESS
+• Rotas públicas configuradas: /auth/**, /h2-console/**, /swagger-ui/**, GET /usuarios/**, GET /cursos/**, GET /matriculas/**, GET /assinaturas/**
+• Rotas protegidas: POST/PUT/DELETE /usuarios/**, POST /matriculas/**, /instrutor/** requer ROLE
+• PasswordEncoder bean com BCryptPasswordEncoder
+• CorsConfiguration permitindo http://localhost:4200 (Angular)
+• UserDetailsImpl implementa UserDetails do Spring Security
+• UserDetailsServiceImpl implementa UserDetailsService, carrega Usuario por email
+
+Teste Básico: 
+• GET /usuarios retorna 200 sem token
+• POST /usuarios sem token retorna 401
+• POST /usuarios com token válido retorna 200/201
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Task 1.3, Task 1.4, Task 1.5
+
+--------------------------------------------------------------------------------
+Task 1.3 - Configurar propriedades JWT no application.properties
+--------------------------------------------------------------------------------
+
+Objetivo: Definir segredo e expiração do token JWT
+
+Critérios de Aceitação:
+• app.jwt.secret configurado com chave secreta (mínimo 32 caracteres)
+• app.jwt.expiration configurado em milissegundos (sugestão: 86400000 = 24 horas)
+• Propriedades lidas via @Value no JwtTokenProvider
+
+Teste Básico: Aplicação inicia sem erro de propriedade ausente
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Task 1.2 (JwtTokenProvider)
+
+--------------------------------------------------------------------------------
+Task 1.4 - Adicionar método findByEmail no UsuarioRepository
+--------------------------------------------------------------------------------
+
+Objetivo: Permitir busca de usuário por email para autenticação
+
+Critérios de Aceitação:
+• Método Optional<Usuario> findByEmail(String email) declarado no UsuarioRepository
+• Spring Data JPA gera implementação automaticamente
+• Retorna Optional vazio se email não existir
+
+Teste Básico: Injeção do UsuarioRepository funciona, método findByEmail retorna usuário existente
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Task 1.2 (UserDetailsServiceImpl), Task 1.5 (AuthUseCase)
+
+--------------------------------------------------------------------------------
+Task 1.5 - Criar AuthUseCase (application/auth)
+--------------------------------------------------------------------------------
+
+Objetivo: Implementar casos de uso de registro e login com regras de negócio
+
+Critérios de Aceitação:
+• AuthUseCase em application.auth com dependências: UsuarioRepository, PasswordEncoder, JwtTokenProvider
+• Método register(String nome, String email, String senha): verifica email duplicado, criptografa senha com BCrypt, persiste Usuario, retorna mensagem de sucesso
+• Método login(String email, String senha): carrega usuário por email, valida senha com BCrypt, gera token JWT, retorna token
+• Lança IllegalArgumentException para email duplicado, credenciais inválidas
+• Transacional: @Transactional no register, @Transactional(readOnly = true) no login
+
+Teste Básico:
+• register() com email único → Usuario salvo com senha criptografada
+• register() com email duplicado → IllegalArgumentException
+• login() com credenciais corretas → token JWT retornado
+• login() com senha incorreta → IllegalArgumentException
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Task 1.6 (AuthController)
+
+--------------------------------------------------------------------------------
+Task 1.6 - Criar AuthController com endpoints /auth/register e /auth/login
+--------------------------------------------------------------------------------
+
+Objetivo: Expor endpoints REST para autenticação
+
+Critérios de Aceitação:
+• AuthController em controller.auth com @RequestMapping("/auth")
+• POST /auth/register: recebe RegisterRequestDTO, valida senhas iguais, chama AuthUseCase.register(), retorna 201 Created
+• POST /auth/login: recebe LoginRequestDTO, chama AuthUseCase.login(), retorna LoginResponseDTO com token, tokenType, expiresIn
+• DTOs: RegisterRequestDTO (nomeCompleto, email, senha, confirmarSenha), LoginRequestDTO (email, senha), LoginResponseDTO (token, tokenType, expiresIn, usuario), AuthErrorDTO (status, erro, mensagem, path)
+• Validação com @Valid e annotations do Jakarta Validation (@NotBlank, @Email, @Size)
+• ExceptionHandler para IllegalArgumentException retorna 400 Bad Request com AuthErrorDTO
+• Swagger tags e operations documentadas
+
+Teste Básico:
+• POST /auth/register com dados válidos → 201 Created
+• POST /auth/register com email duplicado → 400 Bad Request
+• POST /auth/register com senhas diferentes → 400 Bad Request
+• POST /auth/login com credenciais corretas → 200 OK + token JWT
+• POST /auth/login com senha incorreta → 400 Bad Request
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Task 1.7 (Frontend Auth)
+
+--------------------------------------------------------------------------------
+Task 1.7 - Atualizar frontend Angular para integrar com endpoints /auth/*
+--------------------------------------------------------------------------------
+
+Objetivo: Conectar formulários de login/cadastro do Angular com backend
+
+Critérios de Aceitação:
+• AuthService.login() chama POST /auth/login com {email, senha}
+• AuthService.register() chama POST /auth/register com {nomeCompleto, email, senha, confirmarSenha}
+• Token JWT armazenado em localStorage
+• Usuário redirecionado para /dashboard após login bem-sucedido
+• Mensagens de erro da API exibidas nos formulários
+• Validação de senhas diferentes feita no frontend antes de chamar API
+
+Teste Básico:
+• Preencher login e submeter → token armazenado, redirect para /dashboard
+• Preencher cadastro com email duplicado → mensagem de erro exibida
+• Preencher login com senha errada → mensagem de erro exibida
+
+Owner: Evelyn/Madu
+Prioridade: Must Have
+Depende: Task 1.6
+
+
+================================================================================
+PRIORIDADE 2 - DOMÍNIO (3-4 dias)
+================================================================================
+
+Refatorar entidades para seguir DDD com herança JPA e métodos de domínio.
+
+--------------------------------------------------------------------------------
+Task 2.1 - Criar classe abstrata Pessoa com herança JOINED
+--------------------------------------------------------------------------------
+
+Objetivo: Estabelecer base para hierarchy de usuários (Aluno, Professor, Administrador)
+
+Critérios de Aceitação:
+• Classe Pessoa em domain com @Entity, @Table(name = "pessoa")
+• @Inheritance(strategy = InheritanceType.JOINED) para herança com tabela por classe
+• Atributos: id (UUID, GenerationType.UUID), nome (String), email (String, unique), senha (String), ativo (boolean), perfil (PerfilUsuario enum)
+• Getters e setters implementados
+• Construtor vazio para JPA
+
+Teste Básico: DDL gera tabela "pessoa" com colunas id (UUID), nome, email, senha, ativo, perfil
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Task 2.2, Task 2.3, Task 2.4
+
+--------------------------------------------------------------------------------
+Task 2.2 - Criar entidade Aluno estendendo Pessoa
+--------------------------------------------------------------------------------
+
+Objetivo: Representar aluno como Aggregate Root do contexto usuario
+
+Critérios de Aceitação:
+• Classe Aluno em domain com @Entity, @Table(name = "aluno"), @PrimaryKeyJoinColumn(name = "pessoa_id")
+• Estende Pessoa, herda todos os atributos
+• Atributos específicos: tipoPlano (TipoPlano enum, default BASICO), totalCursosConcluidos (int), saldoCursosExtras (int), saldoMoedas (int)
+• Relacionamento: @OneToMany(mappedBy = "aluno") List<Matricula> matriculas
+• Métodos de domínio: receberCursosExtras(int quantidade) → incrementa saldoCursosExtras, fazerUpgradePremium() → muda tipoPlano para PREMIUM, incrementarCursosConcluidos() → incrementa totalCursosConcluidos
+• Construtor inicializa valores default
+
+Teste Básico:
+• DDL gera tabela "aluno" com FK para "pessoa"
+• Aluno.receberCursosExtras(3) → saldoCursosExtras += 3
+• Aluno.fazerUpgradePremium() → tipoPlano == PREMIUM
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Task 2.6 (UpgradePlanoService), Task 5.1 (RecompensaService)
+
+--------------------------------------------------------------------------------
+Task 2.3 - Criar entidade Professor estendendo Pessoa
+--------------------------------------------------------------------------------
+
+Objetivo: Representar professor responsável por cursos
+
+Critérios de Aceitação:
+• Classe Professor em domain com @Entity, @Table(name = "professor"), @PrimaryKeyJoinColumn(name = "pessoa_id")
+• Estende Pessoa
+• Atributo: especialidade (String)
+• Relacionamento: @OneToMany(mappedBy = "professor") List<Curso> cursosResponsavel
+
+Teste Básico: DDL gera tabela "professor" com FK para "pessoa"
+
+Owner: Ihan
+Prioridade: Should Have
+Bloqueia: Task 4.3 (Avaliação de Projetos)
+
+--------------------------------------------------------------------------------
+Task 2.4 - Atualizar entidade Administrador estendendo Pessoa
+--------------------------------------------------------------------------------
+
+Objetivo: Representar administrador da plataforma
+
+Critérios de Aceitação:
+• Classe Administrador em domain modificada para estender Pessoa
+• @PrimaryKeyJoinColumn(name = "pessoa_id")
+• Atributo: cargo (String)
+• Remove atributos duplicados de Pessoa
+
+Teste Básico: DDL gera tabela "administrador" com FK para "pessoa", aplicação inicia sem erro
+
+Owner: Ihan
+Prioridade: Could Have
+
+--------------------------------------------------------------------------------
+Task 2.5 - Criar enums TipoPlano e PerfilUsuario
+--------------------------------------------------------------------------------
+
+Objetivo: Tipar plano do aluno e perfil de usuário
+
+Critérios de Aceitação:
+• Enum TipoPlano em domain.enums com valores: BASICO(descricao, preco), PREMIUM(descricao, preco)
+• Enum PerfilUsuario em domain.enums com valores: ALUNO, PROFESSOR, ADMINISTRADOR
+• Enums usados nas entidades Pessoa e Aluno via @Enumerated(EnumType.STRING)
+
+Teste Básico: Entidades compilam, @Enumerated salva nome do enum no banco (não índice)
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Task 2.2, Task 2.3, Task 2.4
+
+--------------------------------------------------------------------------------
+Task 2.6 - Criar UpgradePlanoService (domain.usuario.service)
+--------------------------------------------------------------------------------
+
+Objetivo: Implementar regra de upgrade automático para Premium ao atingir 12 cursos
+
+Critérios de Aceitação:
+• UpgradePlanoService em domain.usuario.service
+• Método verificarEAplicarUpgrade(Aluno aluno): se totalCursosConcluidos >= 12 E tipoPlano != PREMIUM → chama aluno.fazerUpgradePremium()
+• Idempotente: aluno já PREMIUM não causa erro, não altera estado
+• Não persiste diretamente (serviço de domínio puro), retorna boolean indicando se houve upgrade
+
+Teste Básico:
+• Aluno com 11 cursos → verificarEAplicarUpgrade() retorna false, sem mudança
+• Aluno com 12 cursos e plano BASICO → verificarEAplicarUpgrade() retorna true, tipoPlano == PREMIUM
+• Aluno já PREMIUM → verificarEAplicarUpgrade() retorna false, sem erro
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Task 5.2 (Integração com RecompensaService)
+
+--------------------------------------------------------------------------------
+Task 2.7 - Criar enums do domínio acadêmico (StatusCurso, ModalidadeCurso, TipoConteudo, StatusMatricula)
+--------------------------------------------------------------------------------
+
+Objetivo: Tipar status e modalidades do contexto acadêmico
+
+Critérios de Aceitação:
+• Enum StatusCurso em domain.academico.enums com: RASCUNHO, EM_PRODUCAO, PUBLICADO, EM_ANALISE, ARQUIVADO
+• Enum ModalidadeCurso em domain.academico.enums com: EAD, PRESENCIAL, HYBRIDO
+• Enum TipoConteudo em domain.academico.enums com: VIDEO, PDF, LINK, AULA_SINCRONA_GRAVADA, QUIZ, ATIVIDADE
+• Enum StatusMatricula em domain.academico.enums com: EM_ANDAMENTO, CONCLUIDA, REPROVADA, CANCELADA
+• Enums usados nas entidades via @Enumerated(EnumType.STRING)
+
+Teste Básico: Entidades compilam, enums salvos como string no banco
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Task 2.8, Task 2.9
+
+--------------------------------------------------------------------------------
+Task 2.8 - Completar entidade Curso (Aggregate Root)
+--------------------------------------------------------------------------------
+
+Objetivo: Curso como Aggregate Root com lógica de domínio
+
+Critérios de Aceitação:
+• Entidade Curso em domain.academico.entity
+• Atributos: id (UUID), tituloCurso, descCurso, publicoAlvo, conhecimentosPrevios, status (StatusCurso), modalidade (ModalidadeCurso), maxAlunos, minAlunos, nivel (NivelCurso VO)
+• Métodos de domínio: adicionarModulo(Modulo modulo), aceitaNovasMatriculas() → retorna true se inscritos < maxAlunos
+• Relacionamento: @OneToMany List<Modulo> modulos com cascade e orphanRemoval
+• CursoRepository interface em domain.academico.repository
+
+Teste Básico:
+• Curso.aceitaNovasMatriculas() com 50 inscritos e maxAlunos=100 → true
+• Curso.aceitaNovasMatriculas() com 100 inscritos e maxAlunos=100 → false
+• DDL gera tabelas curso e modulo com FK
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Task 2.10 (Seed de Dados)
+
+--------------------------------------------------------------------------------
+Task 2.9 - Completar entidade Matricula com métodos de domínio
+--------------------------------------------------------------------------------
+
+Objetivo: Matricula como Aggregate Root com lógica de progressão
+
+Critérios de Aceitação:
+• Entidade Matricula em domain.academico.entity
+• Atributos: id (UUID), aluno (Aluno), curso (Curso), status (StatusMatricula), moduloAtual (int), notaFinal (double)
+• Unique constraint: @Table(uniqueConstraints = @UniqueConstraint(columnNames = {"aluno_id", "curso_id"}))
+• Métodos de domínio: podeAvancarModulo(int ordemModulo) → verifica módulo anterior CONCLUIDO, concluir(double notaFinal) → muda status para CONCLUIDA/REPROVADA, verificarAprovacao() → retorna notaFinal > 7.0
+• MatriculaRepository interface em domain.academico.repository com método countConcluidosByAluno(UUID alunoId)
+
+Teste Básico:
+• Matricula.podeAvancarModulo(1) com modulo 0 CONCLUIDO → true
+• Matricula.podeAvancarModulo(1) com modulo 0 EM_ANDAMENTO → false
+• Matricula.concluir(8.5) → status == CONCLUIDA
+• Matricula.concluir(5.0) → status == REPROVADA
+• Matrícula duplicada (mesmo aluno, mesmo curso) → erro de unique constraint
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Task 3.1, Task 3.2
+
+--------------------------------------------------------------------------------
+Task 2.10 - Criar entidades Modulo e Aula
+--------------------------------------------------------------------------------
+
+Objetivo: Estruturar conteúdo dos cursos
+
+Critérios de Aceitação:
+• Entidade Modulo em domain.academico.entity com: id (UUID), ordem (int), titulo, @ManyToOne Curso, @OneToMany List<Aula>
+• Entidade Aula em domain.academico.entity com: id (UUID), titulo, tipoConteudo (TipoConteudo), urlConteudo, ehSincrona (boolean), ordem (int), @ManyToOne Modulo
+• Relacionamento Modulo-Aula com cascade e orphanRemoval
+• Método em Modulo: todasAulasConcluidas() → boolean
+
+Teste Básico: DDL gera tabelas modulo e aula com FKs corretas, cascade funciona (excluir modulo exclui aulas)
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Task 2.10 (Seed de Dados)
+
+--------------------------------------------------------------------------------
+Task 2.11 - Criar Seed de Dados (CommandLineRunner)
+--------------------------------------------------------------------------------
+
+Objetivo: Popular banco com dados para demonstração
+
+Critérios de Aceitação:
+• Classe DataSeeder implementa CommandLineRunner
+• @Profile("dev") para executar apenas em desenvolvimento
+• Idempotente: verifica existência antes de inserir (não duplica em restarts)
+• Cria 3 cursos com status PUBLICADO, 2 módulos cada, 3 aulas por módulo
+• Cria usuário demo_aluno com: totalCursosConcluidos=11, saldoCursosExtras=33, tipoPlano=BASICO, email/password fixos para demo
+• Cria pelo menos 1 professor e 1 administrador
+
+Teste Básico:
+• Aplicação inicia → GET /cursos retorna 3 cursos
+• Login com demo_aluno → dados mostram 11 cursos concluídos, plano BASICO
+• Restart da aplicação → dados não duplicam
+
+Owner: Ihago
+Prioridade: Must Have
+Bloqueia: Task 5.4 (Demo End-to-End)
+
+
+================================================================================
+PRIORIDADE 3 - CASOS DE USO (2-3 dias)
+================================================================================
+
+Implementar camada application com UseCases que orquestram domínio.
+
+--------------------------------------------------------------------------------
+Task 3.1 - Criar MatricularAlunoUseCase (application.academico)
+--------------------------------------------------------------------------------
+
+Objetivo: Orquestrar processo de matrícula com regras de negócio
+
+Critérios de Aceitação:
+• MatricularAlunoUseCase em application.academico
+• Dependências: MatriculaRepository, AlunoRepository, CursoRepository
+• Método matricular(UUID alunoId, UUID cursoId): verifica curso aceita novas matrículas, verifica aluno não matriculado no mesmo curso, decrementa saldoCursosExtras se necessário, cria Matricula com status EM_ANDAMENTO, persiste via MatriculaRepository
+• Lança exceções: IllegalArgumentException para curso lotado, matrícula duplicada, curso não encontrado
+• Retorna Matricula criada
+
+Teste Básico:
+• Matrícula válida → Matricula com status EM_ANDAMENTO
+• Matrícula duplicada → IllegalArgumentException
+• Curso lotado → IllegalArgumentException
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Task 2.4 (MatriculaController)
+
+--------------------------------------------------------------------------------
+Task 3.2 - Criar ConcluirModuloUseCase (application.academico)
+--------------------------------------------------------------------------------
+
+Objetivo: Orquestrar conclusão de módulo e publicação de evento
+
+Critérios de Aceitação:
+• ConcluirModuloUseCase em application.academico
+• Dependências: MatriculaRepository, ProgressaoModularService, ApplicationEventPublisher
+• Método concluirModulo(UUID matriculaId, int ordemModulo): valida pode avançar módulo via ProgressaoModularService, atualiza moduloAtual na Matricula, se último módulo → chama Matricula.concluir(notaFinal) e publica CursoConcluidoEvent
+• Idempotente: re-executar para módulo já concluído não altera estado
+• Retorna percentual de progresso e se módulo seguinte foi desbloqueado
+
+Teste Básico:
+• Concluir módulo 0 → percentual atualizado, módulo 1 desbloqueado
+• Re-executar conclusão módulo 0 → mesmo resultado, sem side effects
+• Concluir último módulo com nota > 7 → CursoConcluidoEvent publicado
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Task 5.1 (RecompensaService), Task 5.3 (Integração Gamificação)
+
+--------------------------------------------------------------------------------
+Task 3.3 - Criar ProgressaoModularService (domain.academico.service)
+--------------------------------------------------------------------------------
+
+Objetivo: Implementar regras RN011/RN024 de progressão modular
+
+Critérios de Aceitação:
+• ProgressaoModularService em domain.academico.service
+• Método podeAvancarModulo(Matricula matricula, int ordemModuloAlvo): retorna false se módulo anterior não estiver CONCLUIDO (RN024), módulo 0 sempre acessível
+• Método registrarConclusaoModulo(Matricula matricula, int ordemModulo): atualiza moduloAtual, persiste via MatriculaRepository
+• Delega para Matricula.podeAvancarModulo() quando aplicável
+
+Teste Básico:
+• Acessar módulo 2 sem concluir módulo 1 → podeAvancarModulo() retorna false
+• Concluir módulo 1 → podeAvancarModulo(1) retorna true
+• Módulo 0 sempre → podeAvancarModulo(0) retorna true
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Task 3.2 (ConcluirModuloUseCase)
+
+--------------------------------------------------------------------------------
+Task 3.4 - Criar evento CursoConcluidoEvent
+--------------------------------------------------------------------------------
+
+Objetivo: Publicar evento quando aluno conclui curso para integrar com gamificação
+
+Critérios de Aceitação:
+• Classe CursoConcluidoEvent em domain.academico.evento
+• Estende ApplicationEvent do Spring
+• Contém: matriculaId (UUID), alunoId (UUID), cursoId (UUID), notaFinal (double), dataConclusao (LocalDateTime)
+• Publicado via ApplicationEventPublisher no ConcluirModuloUseCase ao concluir último módulo
+
+Teste Básico: Publicar evento → listeners @EventListener recebem evento
+
+Owner: Ihan
+Prioridade: Must Have
+Bloqueia: Task 5.1 (RecompensaService), Task 5.3 (Integração)
+
+--------------------------------------------------------------------------------
+Task 3.5 - Atualizar controllers para usar UseCases
+--------------------------------------------------------------------------------
+
+Objetivo: Controllers delegam para UseCases, não acessam repositories diretamente
+
+Critérios de Aceitação:
+• MatriculaController usa MatricularAlunoUseCase para POST /matriculas
+• MatriculaController usa ConcluirModuloUseCase para POST /matriculas/{id}/modulos/{ordem}/concluir
+• DTOs de resposta: MatriculaResponseDTO (id, tituloCurso, status, moduloAtual, totalModulos, percentualProgresso)
+• Controle de acesso: aluno só acessa suas próprias matrículas (validado via JWT claim userId)
+
+Teste Básico:
+• POST /matriculas → 201 Created + MatriculaResponseDTO
+• POST /matriculas/{id}/modulos/{ordem}/concluir → 200 OK + percentual
+• Acesso à matrícula de outro aluno → 403 Forbidden
+
+Owner: Ihan
+Prioridade: Must Have
+
+
+================================================================================
+PRIORIDADE 4 - GAMIFICAÇÃO (1-2 dias)
+================================================================================
+
+Implementar sistema de recompensas e upgrade automático.
+
+--------------------------------------------------------------------------------
+Task 4.1 - Criar RecompensaService com listener de CursoConcluidoEvent
+--------------------------------------------------------------------------------
+
+Objetivo: Processar recompensas ao concluir curso
+
+Critérios de Aceitação:
+• RecompensaService em domain.gamificacao.service
+• Implementa listener @EventListener ou @TransactionalEventListener para CursoConcluidoEvent
+• Método processarFimDeCurso(CursoConcluidoEvent evento): se evento.notaFinal > 7.0 → chama Aluno.receberCursosExtras(3) (RF002, RN002)
+• Persiste Aluno atualizado via AlunoRepository
+• Se aluno for Premium → registra TransacaoMoeda (RF007)
+• Idempotente por matriculaId: verifica se já processado antes de executar
+
+Teste Básico:
+• Publicar CursoConcluidoEvent com nota 8.0 → Aluno.saldoCursosExtras += 3
+• Publicar CursoConcluidoEvent com nota 6.0 → sem alteração
+• Publicar evento duplicado (mesmo matriculaId) → sem processamento duplicado
+
+Owner: Ihago
+Prioridade: Must Have
+Bloqueia: Task 4.2 (Integração End-to-End)
+
+--------------------------------------------------------------------------------
+Task 4.2 - Integrar RecompensaService com UpgradePlanoService
+--------------------------------------------------------------------------------
+
+Objetivo: Chamar upgrade automático após incrementar cursos concluídos
+
+Critérios de Aceitação:
+• RecompensaService chama UpgradePlanoService.verificarEAplicarUpgrade(Aluno) após incrementar totalCursosConcluidos
+• Se upgrade ocorrer → emite notificação (pode ser log por enquanto)
+• Transação separada: @TransactionalEventListener(phase = AFTER_COMMIT) para não afetar transação principal de conclusão
+
+Teste Básico:
+• Aluno com 11 cursos conclui 12º curso → tipoPlano muda para PREMIUM
+• Aluno já PREMIUM → sem erro, sem mudança
+• Falha no listener não afeta conclusão do curso
+
+Owner: Ihago
+Prioridade: Must Have
+Bloqueia: Task 4.3 (Demo End-to-End)
+
+--------------------------------------------------------------------------------
+Task 4.3 - Criar entidade TransacaoMoeda (gamificacao)
+--------------------------------------------------------------------------------
+
+Objetivo: Registrar transações de moeda para auditoria (RNF008)
+
+Critérios de Aceitação:
+• Entidade TransacaoMoeda em domain.gamificacao.entity
+• Atributos: id (UUID), aluno (Aluno), quantidade (int), tipo (String: GANHO/GASTO), origem (String), dataTransacao (LocalDateTime)
+• Imutável após criação (sem setters, apenas construtor)
+• @EventListener em RecompensaService cria TransacaoMoeda se aluno for Premium
+
+Teste Básico: Aluno Premium conclui curso → TransacaoMoeda registrada com tipo=GANHO
+
+Owner: Ihago
+Prioridade: Should Have
+
+--------------------------------------------------------------------------------
+Task 4.4 - Seed de demo: perfil demo_aluno com 11 cursos concluídos
+--------------------------------------------------------------------------------
+
+Objetivo: Preparar cenário para demonstração ao vivo do upgrade Premium
+
+Critérios de Aceitação:
+• demo_aluno criado no seed com: totalCursosConcluidos=11, saldoCursosExtras=33, tipoPlano=BASICO
+• demo_aluno matriculado no 12º curso com todos os módulos anteriores ao último já concluídos
+• Último módulo do 12º curso disponível para conclusão na demo
+• Login como demo_aluno → GET /alunos/{id}/progresso mostra plano BASICO e 11 cursos
+
+Teste Básico:
+• Login demo_aluno → plano BASICO, 11 cursos concluídos
+• Concluir último módulo do 12º curso → tipoPlano muda para PREMIUM (verificar no banco e API)
+
+Owner: Ihago
+Prioridade: Must Have
+Bloqueia: Task 5.4 (Demo End-to-End)
+
+
+================================================================================
+PRIORIDADE 5 - INTEGRAÇÃO FRONTEND (2 dias)
+================================================================================
+
+--------------------------------------------------------------------------------
+Task 5.1 - Atualizar serviços Angular para novos endpoints
+--------------------------------------------------------------------------------
+
+Objetivo: Alinhar frontend com backend implementado
+
+Critérios de Aceitação:
+• AuthService chama POST /auth/login e POST /auth/register
+• CursosService.matricular() chama POST /matriculas com payload correto
+• ProgressService.concluirModulo() chama POST /matriculas/{id}/modulos/{ordem}/concluir
+• Tratamento de erros: 401 (não autorizado), 403 (proibido), 409 (conflito), 400 (bad request)
+• Toasts/notificações para feedback de ações
+
+Teste Básico: Matrícula → toast de sucesso, erro 409 → toast "Você já está matriculado"
+
+Owner: Evelyn/Madu
+Prioridade: Must Have
+
+--------------------------------------------------------------------------------
+Task 5.2 - Implementar Dashboard do Aluno no Angular
+--------------------------------------------------------------------------------
+
+Objetivo: Exibir métricas do aluno (plano, saldo, cursos concluídos)
+
+Critérios de Aceitação:
+• DashboardComponent chama GET /alunos/{id}/progresso
+• Cards exibem: tipoPlano (badge BASICO cinza / PREMIUM dourado), saldoCursosExtras, totalCursosConcluidos
+• Tabela de matrículas com: título do curso, data de início, status, nota final
+• Badge PREMIUM destacado no header se tipoPlano == PREMIUM
+
+Teste Básico: Dashboard carrega dados do seed, badge PREMIUM visível para aluno Premium
+
+Owner: Evelyn
+Prioridade: Should Have
+
+--------------------------------------------------------------------------------
+Task 5.3 - Implementar toasts de notificação (recompensa e upgrade)
+--------------------------------------------------------------------------------
+
+Objetivo: Feedback visual de conquistas
+
+Critérios de Aceitação:
+• Resposta do POST de conclusão inclui campo recompensa {tipo, quantidade} ou null
+• Se recompensa presente → toast verde "+3 cursos desbloqueados"
+• Se tipoPlano mudou para PREMIUM → toast dourado "Parabéns, você atingiu o plano Premium!"
+• Toasts desaparecem após 5 segundos
+
+Teste Básico: Concluir curso nota 8 → toast visível, concluir 12º curso → toast Premium visível
+
+Owner: Madu
+Prioridade: Should Have
+
+--------------------------------------------------------------------------------
+Task 5.4 - Testar fluxo end-to-end para demo
+--------------------------------------------------------------------------------
+
+Objetivo: Validar roteiro completo da apresentação
+
+Critérios de Aceitação:
+• Roteiro testado: cadastro → catálogo → matrícula → progressão → conclusão → recompensa → upgrade Premium
+• Todas as telas carregam sem erro
+• Transições entre telas funcionam
+• Toasts e badges atualizam corretamente
+• Demo_aluno consegue concluir 12º curso e ver upgrade ao vivo
+
+Teste Básico: Executar roteiro completo sem erros, upgrade Premium ocorre na tela
+
+Owner: Toda equipe
+Prioridade: Must Have
+
+
+================================================================================
+RESUMO DE DEPENDÊNCIAS CRÍTICAS
+================================================================================
+
+CAMINHO CRÍTICO PARA DEMO:
+
+1.1 (Security) → 1.2 (JwtAuth) → 1.5 (AuthUseCase) → 1.6 (AuthController) → 1.7 (Frontend Auth)
+                                    ↓
+2.1 (Pessoa) → 2.2 (Aluno) → 2.6 (UpgradePlanoService) → 4.1 (RecompensaService) → 4.2 (Integração)
+                                    ↓
+2.7 (Enums) → 2.8 (Curso) → 2.10 (Modulo/Aula) → 2.11 (Seed) → 5.4 (Demo)
+                                    ↓
+2.9 (Matricula) → 3.3 (ProgressaoService) → 3.2 (ConcluirModuloUseCase) → 3.4 (Evento) → 4.1 (Recompensa)
+
+BLOQUEADORES PRINCIPAIS:
+• Task 1.2 (Security) bloqueia toda autenticação
+• Task 2.2 (Aluno) bloqueia gamificação e upgrade
+• Task 2.11 (Seed) bloqueia demonstração
+• Task 3.4 (Evento) bloqueia integração academico → gamificacao
+
+TEMPO ESTIMADO TOTAL: 9-13 dias
+
+================================================================================
+FIM DO PLANO DETALHADO
+================================================================================
