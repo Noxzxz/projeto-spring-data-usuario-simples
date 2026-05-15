@@ -1,7 +1,10 @@
 package com.exemplo.usuariosimples.domain;
 
+import com.exemplo.usuariosimples.domain.enums.PerfilUsuario;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -21,23 +24,28 @@ public class Usuario {
     @Column(nullable = false,unique = true, length = 120)
     private String email;
 
-    @Column(nullable = false,length = 21)
+    @Column(nullable = false, length = 60)
     private String senha;
 
     @Column(nullable = false)
     private boolean ativo;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private PerfilUsuario perfil;
 
     // Construtor vazio (obrigatório para JPA)
     public Usuario() {
     }
 
     // Construtor completo
-    public Usuario(Long id, String nome, String email, String senha, boolean ativo) {
+    public Usuario(Long id, String nome, String email, String senha, boolean ativo, PerfilUsuario perfil) {
         this.id = id;
         this.nome = nome;
         this.email = email;
         this.senha = senha;
         this.ativo = ativo;
+        this.perfil = perfil;
     }
 
     // Getters e Setters
@@ -80,6 +88,14 @@ public class Usuario {
 
     public void setAtivo(boolean ativo) {
         this.ativo = ativo;
+    }
+
+    public PerfilUsuario getPerfil() {
+        return perfil;
+    }
+
+    public void setPerfil(PerfilUsuario perfil) {
+        this.perfil = perfil;
     }
 }
 
