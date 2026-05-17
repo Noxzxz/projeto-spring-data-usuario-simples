@@ -1,32 +1,34 @@
 package com.exemplo.usuariosimples.infrastructure.security;
 
-import com.exemplo.usuariosimples.domain.Usuario;
+import com.exemplo.usuariosimples.domain.usuario.enums.PerfilUsuario;
+import com.exemplo.usuariosimples.domain.usuario.entity.Pessoa;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 
 public class UserDetailsImpl implements UserDetails {
 
-    private final Long id;
+    private final UUID id;
     private final String email;
     private final String senha;
     private final boolean ativo;
     private final String perfil;
     private final Collection<? extends GrantedAuthority> authorities;
 
-    public UserDetailsImpl(Usuario usuario) {
-        this.id = usuario.getId();
-        this.email = usuario.getEmail();
-        this.senha = usuario.getSenha();
-        this.ativo = usuario.isAtivo();
-        this.perfil = usuario.getPerfil().name();
+    public UserDetailsImpl(Pessoa pessoa) {
+        this.id = pessoa.getId();
+        this.email = pessoa.getEmail().endereco();
+        this.senha = pessoa.getSenha().hash();
+        this.ativo = pessoa.isAtivo();
+        this.perfil = pessoa.getPerfil().name();
         this.authorities = List.of(new SimpleGrantedAuthority("ROLE_" + perfil));
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 
