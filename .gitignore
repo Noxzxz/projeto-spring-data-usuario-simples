@@ -6,6 +6,7 @@ build/
 .gradle/
 bin/
 out/
+*.class
 
 ### IDEs (IntelliJ, Eclipse, VS Code) ###
 .idea/
