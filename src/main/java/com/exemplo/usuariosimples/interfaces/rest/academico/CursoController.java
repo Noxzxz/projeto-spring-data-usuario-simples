@@ -45,9 +45,13 @@ public class CursoController {
     public Curso atualizar(@PathVariable Long id, @RequestBody Curso nova) {
         return repository.findById(id)
                 .map(c -> {
-                    c.setId(nova.getId());
                     c.setTituloCurso(nova.getTituloCurso());
                     c.setDescCurso(nova.getDescCurso());
+                    c.setStatus(nova.getStatus());
+                    c.setModalidade(nova.getModalidade());
+                    c.setNivel(nova.getNivel());
+                    c.setPublicoAlvo(nova.getPublicoAlvo());
+                    c.setConhecimentosPrevios(nova.getConhecimentosPrevios());
                     return repository.save(c);
                 })
                 .orElse(null);

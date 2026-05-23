@@ -1,0 +1,271 @@
+================================================================================
+AVALIAÇÃO DE PROGRESSO - PRIORIDADE 1 (FUNDAÇÃO)
+Projeto EAD Platform
+Data: 16/05/2026
+================================================================================
+
+RESUMO EXECUTIVO
+--------------------------------------------------------------------------------
+Progresso da Prioridade 1:  ~70% CONCLUÍDA
+Status de Compilação:       ✅ BUILD SUCCESS (28 source files)
+Status de Execução:         ⚠️  NÃO TESTADO AINDA
+
+O que está implementado:
+  ✅ Task 1.1 - Dependências Security + JWT no pom.xml
+  ✅ Task 1.2 - Infraestrutura de segurança (5 arquivos)
+  ✅ Task 1.3 - Propriedades JWT no application.properties
+  ✅ Task 1.4 - Método findByEmail no UsuarioRepository
+  ✅ Task 1.4b - Enum PerfilUsuario criado
+  ✅ Task 1.4c - Campo perfil adicionado na entidade Usuario
+
+O que FALTA implementar:
+  ❌ Task 1.5 - AuthUseCase (application/auth)
+  ❌ Task 1.6 - AuthController + DTOs (controller/auth/dto)
+  ❌ Task 1.7 - Integração frontend Angular
+
+================================================================================
+AVALIAÇÃO DETALHADA POR ARQUIVO
+================================================================================
+
+--------------------------------------------------------------------------------
+1. pom.xml
+--------------------------------------------------------------------------------
+Status: ✅ CONCLUÍDO
+
+Implementado:
+  • spring-boot-starter-security (linha 44)
+  • jjwt-api 0.11.5 (linha 56)
+  • jjwt-impl 0.11.5 runtime (linha 62)
+  • jjwt-jackson 0.11.5 runtime (linha 69)
+
+Observação: Todas as dependências corretas, sem versão para security (herda
+do parent spring-boot-starter-parent 3.3.5).
+
+--------------------------------------------------------------------------------
+2. application.properties
+--------------------------------------------------------------------------------
+Status: ✅ CONCLUÍDO
+
+Implementado:
+  • app.jwt.secret=chaveSecretaParaJWTTokenComMinimo32Caracteres! (linha 14)
+  • app.jwt.expiration=86400000 (linha 15) → 24 horas
+
+Observação: Secret tem 44 caracteres, suficiente para HS256 (mínimo 32).
+Expiração de 24h é adequada para demo acadêmica.
+
+--------------------------------------------------------------------------------
+3. JwtTokenProvider.java
+--------------------------------------------------------------------------------
+Status: ✅ CONCLUÍDO - Implementação superior ao planejado
+
+Implementado:
+  • Construtor com injeção via @Value (secret + expiration)
+  • Usa Keys.hmacShaKeyFor() → abordagem moderna e segura (jjwt 0.11+)
+  • SecretKey como campo imutável (melhor que String)
+  • generateToken(UserDetailsImpl) → recebe objeto tipado, não strings soltas
+  • getEmailFromToken(), getUserIdFromToken(), getPerfilFromToken()
+  • validateToken() com try/catch JwtException
+  • parseClaims() privado com parserBuilder (API moderna do jjwt)
+
+Pontos positivos:
+  ✅ Usa SecretKey imutável em vez de String (mais seguro)
+  ✅ Usa parserBuilder (API recomendada para jjwt 0.11+)
+  ✅ generateToken recebe UserDetailsImpl (mais type-safe)
+  ✅ Código limpo, sem redundância
+
+--------------------------------------------------------------------------------
+4. JwtAuthFilter.java
+--------------------------------------------------------------------------------
+Status: ✅ CONCLUÍDO
+
+Implementado:
+  • Estende OncePerRequestFilter
+  • Construtor com JwtTokenProvider + UserDetailsServiceImpl
+  • extractToken() privado → extrai "Bearer <token>" do header Authorization
+  • doFilterInternal() → valida token, carrega user, seta no SecurityContext
+  • Cast explícito para UserDetailsImpl
+
+Pontos positivos:
+  ✅ Segue padrão Spring Security corretamente
+  ✅ Não interfere em requests sem token (deixa passar para SecurityConfig)
+  ✅ Usa WebAuthenticationDetailsSource para detalhes da request
+
+--------------------------------------------------------------------------------
+5. SecurityConfig.java
+--------------------------------------------------------------------------------
+Status: ✅ CONCLUÍDO - Com ajustes menores
+
+Implementado:
+  • @Configuration, @EnableWebSecurity, @EnableMethodSecurity
+  • SecurityFilterChain com:
+    - CORS configurado para http://localhost:4200
+    - CSRF desabilitado (stateless)
+    - SessionCreationPolicy.STATELESS
+    - Rotas públicas: /auth/**, /h2-console/**, /swagger-ui/**, GETs CRUD
+    - Rotas protegidas: POST/PUT/DELETE, /instrutor/** com hasRole("PROFESSOR")
+    - frameOptions().sameOrigin() (para H2 console)
+    - JwtAuthFilter adicionado antes de UsernamePasswordAuthenticationFilter
+  • PasswordEncoder com BCryptPasswordEncoder
+  • CorsConfigurationSource configurado
+
+Pontos positivos:
+  ✅ CORS configurado corretamente para Angular
+  ✅ Rotas GET públicas permitem leitura sem auth (bom para demo)
+  ✅ frameOptions sameOrigin permite H2 console funcionar
+
+Observações:
+  ⚠️ Linha 42: "/Curso/**" e "/cursos/**" duplicados (pode simplificar)
+  ⚠️ Linha 50: hasRole("PROFESSOR") mas o enum usa "PROFESSOR" → Spring
+     adiciona prefixo "ROLE_" automaticamente, então funciona corretamente
+
+--------------------------------------------------------------------------------
+6. UserDetailsImpl.java
+--------------------------------------------------------------------------------
+Status: ✅ CONCLUÍDO - Implementação sólida
+
+Implementado:
+  • Implementa UserDetails do Spring Security
+  • Campos imutáveis (final): id, email, senha, ativo, perfil, authorities
+  • Construtor recebe Usuario e extrai todos os campos
+  • authorities = List.of(new SimpleGrantedAuthority("ROLE_" + perfil))
+  • Todos os métodos UserDetails implementados corretamente
+  • isAccountNonExpired/NonLocked/CredentialsNonExpired → true (simplificado)
+  • isEnabled → baseado em usuario.isAtivo()
+
+Pontos positivos:
+  ✅ Campos imutáveis (boa prática de segurança)
+  ✅ Authorities derivadas do perfil do usuário
+  ✅ isEnabled vinculado ao campo ativo da entidade
+
+--------------------------------------------------------------------------------
+7. UserDetailsServiceImpl.java
+--------------------------------------------------------------------------------
+Status: ✅ CONCLUÍDO
+
+Implementado:
+  • Implementa UserDetailsService
+  • loadUserByUsername(String email) → busca via UsuarioRepository.findByEmail()
+  • Lança UsernameNotFoundException se não encontrar
+  • Retorna new UserDetailsImpl(usuario)
+
+--------------------------------------------------------------------------------
+8. Usuario.java (entidade)
+--------------------------------------------------------------------------------
+Status: ✅ ATUALIZADO para suportar segurança
+
+Implementado:
+  • Campo perfil: @Enumerated(EnumType.STRING) PerfilUsuario
+  • Import do enum PerfilUsuario
+  • Getter/setter para perfil
+  • Senha com length=60 (correto para BCrypt)
+
+Observação: A entidade foi atualizada para incluir o campo perfil, o que
+era necessário para UserDetailsImpl funcionar.
+
+--------------------------------------------------------------------------------
+9. UsuarioRepository.java
+--------------------------------------------------------------------------------
+Status: ✅ CONCLUÍDO
+
+Implementado:
+  • Optional<Usuario> findByEmail(String email)
+
+--------------------------------------------------------------------------------
+10. PerfilUsuario.java (enum)
+--------------------------------------------------------------------------------
+Status: ✅ CONCLUÍDO
+
+Implementado:
+  • ALUNO, PROFESSOR, ADMINISTRADOR
+
+================================================================================
+O QUE FALTA - PRIORIDADE 1
+================================================================================
+
+--------------------------------------------------------------------------------
+❌ Task 1.5 - AuthUseCase (application/auth/AuthUseCase.java)
+--------------------------------------------------------------------------------
+NÃO EXISTE - Pacote application/ não foi criado
+
+O que precisa ser feito:
+  • Criar diretório: src/main/java/.../application/auth/
+  • Criar classe AuthUseCase com:
+    - register(nome, email, senha): verifica email duplicado, criptografa
+      senha com BCrypt, persiste Usuario
+    - login(email, senha): carrega usuário, valida senha, gera token JWT
+  • Dependências: UsuarioRepository, PasswordEncoder, JwtTokenProvider
+  • @Transactional no register, @Transactional(readOnly=true) no login
+
+--------------------------------------------------------------------------------
+❌ Task 1.6 - AuthController + DTOs (controller/auth/)
+--------------------------------------------------------------------------------
+NÃO EXISTE - Pacote controller/auth/ não foi criado
+
+O que precisa ser criado:
+  • controller/auth/AuthController.java
+    - POST /auth/register → chama AuthUseCase.register()
+    - POST /auth/login → chama AuthUseCase.login()
+    - ExceptionHandler para IllegalArgumentException
+  • controller/auth/dto/LoginRequestDTO.java (record com email, senha)
+  • controller/auth/dto/LoginResponseDTO.java (record com token, tokenType, expiresIn)
+  • controller/auth/dto/RegisterRequestDTO.java (record com nomeCompleto, email, senha, confirmarSenha)
+  • controller/auth/dto/AuthErrorDTO.java (record com status, erro, mensagem, path)
+
+--------------------------------------------------------------------------------
+❌ Task 1.7 - Integração Frontend Angular
+--------------------------------------------------------------------------------
+DEPENDENTE DA TASK 1.6
+
+O que precisa ser feito:
+  • AuthService Angular deve chamar POST /auth/login e POST /auth/register
+  • Armazenar token JWT em localStorage
+  • Redirecionar após login bem-sucedido
+  • Exibir mensagens de erro nos formulários
+
+================================================================================
+AVALIAÇÃO DE QUALIDADE DO CÓDIGO IMPLEMENTADO
+================================================================================
+
+Segurança:              8/10
+  ✅ BCrypt para senhas
+  ✅ JWT com HS256 e SecretKey
+  ✅ Stateless session
+  ✅ CORS configurado
+  ⚠️ Secret hardcoded no properties (aceitável para acadêmico)
+  ⚠️ Sem rate limiting (não crítico para demo)
+
+Arquitetura:            7/10
+  ✅ Separação infrastructure.security
+  ✅ Injeção de dependência via construtor
+  ✅ UserDetails imutável
+  ⚠️ Falta camada application (UseCases)
+  ⚠️ Controller ainda é CRUD direto (não usa UseCase)
+
+Código:                 8/10
+  ✅ Código limpo e legível
+  ✅ Uso correto de APIs modernas (jjwt 0.11+)
+  ✅ Imutabilidade onde aplicável
+  ⚠️ Sem testes unitários (esperado para acadêmico)
+  ⚠️ Sem comentários explicativos (exceto os que já existiam)
+
+Compilação:             10/10
+  ✅ BUILD SUCCESS
+  ✅ 28 source files compilados sem erros
+  ✅ Sem warnings de depreciação
+
+================================================================================
+RECOMENDAÇÕES PARA PRÓXIMOS PASSOS
+================================================================================
+
+IMEDIATO (bloqueia tudo):
+  1. Criar AuthUseCase (application/auth)
+  2. Criar AuthController + DTOs (controller/auth)
+  3. Testar login/register via Swagger
+
+APÓS PRIORIDADE 1:
+  4. Atualizar Angular para chamar /auth/login e /auth/register
+  5. Testar fluxo completo: cadastro → login → token → rota protegida
+
+================================================================================
+FIM DA AVALIAÇÃO
+================================================================================
