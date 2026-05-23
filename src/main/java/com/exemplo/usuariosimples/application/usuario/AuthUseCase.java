@@ -1,10 +1,11 @@
 package com.exemplo.usuariosimples.application.usuario;
 
 import com.exemplo.usuariosimples.domain.usuario.entity.Aluno;
-import com.exemplo.usuariosimples.domain.usuario.repository.AlunoRepository;
+import com.exemplo.usuariosimples.domain.usuario.entity.Pessoa;
 import com.exemplo.usuariosimples.domain.usuario.valueobject.Email;
 import com.exemplo.usuariosimples.domain.usuario.valueobject.NomeCompleto;
 import com.exemplo.usuariosimples.domain.usuario.valueobject.SenhaCriptografada;
+import com.exemplo.usuariosimples.infrastructure.persistence.jpa.PessoaJpaRepository;
 import com.exemplo.usuariosimples.infrastructure.security.JwtTokenProvider;
 import com.exemplo.usuariosimples.infrastructure.security.UserDetailsImpl;
 import com.exemplo.usuariosimples.interfaces.rest.usuario.dto.LoginResponseDTO;
@@ -17,14 +18,14 @@ public class AuthUseCase {
 
     private static final long TOKEN_EXPIRATION = 86400000L;
 
-    private final AlunoRepository alunoRepository;
+    private final PessoaJpaRepository pessoaRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
-    public AuthUseCase(AlunoRepository alunoRepository,
+    public AuthUseCase(PessoaJpaRepository pessoaRepository,
                        PasswordEncoder passwordEncoder,
                        JwtTokenProvider jwtTokenProvider) {
-        this.alunoRepository = alunoRepository;
+        this.pessoaRepository = pessoaRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
     }
@@ -34,7 +35,7 @@ public class AuthUseCase {
         Email email = new Email(emailStr);
         NomeCompleto nome = new NomeCompleto(nomeCompleto);
 
-        if (alunoRepository.findByEmail(email).isPresent()) {
+        if (pessoaRepository.findByEmail(email).isPresent()) {
             throw new IllegalArgumentException("E-mail já cadastrado");
         }
 
@@ -42,21 +43,21 @@ public class AuthUseCase {
         SenhaCriptografada senhaCripto = new SenhaCriptografada(senhaHash);
 
         Aluno aluno = new Aluno(nome, email, senhaCripto);
-        alunoRepository.save(aluno);
+        pessoaRepository.save(aluno);
     }
 
     @Transactional(readOnly = true)
     public LoginResponseDTO login(String emailStr, String senha) {
         Email email = new Email(emailStr);
 
-        Aluno aluno = alunoRepository.findByEmail(email)
+        Pessoa pessoa = pessoaRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("E-mail ou senha inválidos"));
 
-        if (!passwordEncoder.matches(senha, aluno.getSenha().hash())) {
+        if (!passwordEncoder.matches(senha, pessoa.getSenha().hash())) {
             throw new IllegalArgumentException("E-mail ou senha inválidos");
         }
 
-        UserDetailsImpl userDetails = new UserDetailsImpl(aluno);
+        UserDetailsImpl userDetails = new UserDetailsImpl(pessoa);
         String token = jwtTokenProvider.generateToken(userDetails);
 
         return new LoginResponseDTO(
@@ -64,10 +65,10 @@ public class AuthUseCase {
                 "Bearer",
                 TOKEN_EXPIRATION,
                 new LoginResponseDTO.UsuarioInfo(
-                        aluno.getId().toString(),
-                        aluno.getNome().valor(),
-                        aluno.getEmail().endereco(),
-                        aluno.getPerfil().name()
+                        pessoa.getId().toString(),
+                        pessoa.getNome().valor(),
+                        pessoa.getEmail().endereco(),
+                        pessoa.getPerfil().name()
                 )
         );
     }

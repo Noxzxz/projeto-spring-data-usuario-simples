@@ -1,55 +1,65 @@
 package com.exemplo.usuariosimples.interfaces.rest.academico;
 
+import com.exemplo.usuariosimples.application.academico.MatricularAlunoUseCase;
 import com.exemplo.usuariosimples.domain.academico.entity.Matricula;
-import com.exemplo.usuariosimples.infrastructure.persistence.jpa.MatriculaJpaRepository;
-import org.springframework.web.bind.annotation.*;
+import com.exemplo.usuariosimples.domain.academico.repository.MatriculaRepository;
+import com.exemplo.usuariosimples.infrastructure.security.UserDetailsImpl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/matriculas")
 @CrossOrigin
 public class MatriculaController {
 
-    private final MatriculaJpaRepository repository;
+    private final MatriculaRepository matriculaRepository;
+    private final MatricularAlunoUseCase matricularAlunoUseCase;
 
-    public MatriculaController(MatriculaJpaRepository repository) {
-        this.repository = repository;
+    public MatriculaController(MatriculaRepository matriculaRepository,
+                               MatricularAlunoUseCase matricularAlunoUseCase) {
+        this.matriculaRepository = matriculaRepository;
+        this.matricularAlunoUseCase = matricularAlunoUseCase;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Matricula criar(@RequestBody Matricula matricula) {
-        return repository.save(matricula);
+    public Matricula matricular(Authentication authentication, @RequestBody MatriculaRequest request) {
+        UUID alunoId = extractUserId(authentication);
+        return matricularAlunoUseCase.executar(alunoId, request.cursoId());
     }
 
     @GetMapping
     public List<Matricula> listar() {
-        return repository.findAll();
+        return matriculaRepository.findAll();
     }
 
     @GetMapping("/{id}")
-    public Matricula buscar(@PathVariable Long id) {
-        return repository.findById(id).orElse(null);
+    public ResponseEntity<Matricula> buscar(@PathVariable Long id) {
+        return matriculaRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void remover(@PathVariable Long id) {
-        repository.deleteById(id);
+    @GetMapping("/{id}/progresso")
+    public ResponseEntity<MatriculaProgressoResponseDTO> progresso(@PathVariable Long id) {
+        return matriculaRepository.findById(id)
+                .map(m -> ResponseEntity.ok(new MatriculaProgressoResponseDTO(
+                        m.getId(), m.getCursoId(), m.getStatus(),
+                        m.getDataMatricula(), m.getDataConclusao(),
+                        m.getNotaFinal(), m.getTotalModulos(),
+                        m.getModulosConcluidos(), m.getPercentualConcluido())))
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    @PutMapping("/{id}")
-    public Matricula atualizar(@PathVariable Long id, @RequestBody Matricula nova) {
-        return repository.findById(id)
-                .map(m -> {
-                    m.setAlunoId(nova.getAlunoId());
-                    m.setCursoId(nova.getCursoId());
-                    m.setDataMatricula(nova.getDataMatricula());
-                    m.setStatus(nova.getStatus());
-                    return repository.save(m);
-                })
-                .orElse(null);
+    private UUID extractUserId(Authentication authentication) {
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        return userDetails.getId();
     }
 }
+
+record MatriculaRequest(Long cursoId) {}
