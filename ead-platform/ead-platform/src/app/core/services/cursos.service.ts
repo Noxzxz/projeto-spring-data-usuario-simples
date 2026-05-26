@@ -42,14 +42,7 @@ export class CursosService {
     const alunoId = this.auth.usuario()?.id;
     if (!alunoId) throw new Error('Usuário não autenticado');
 
-    const payload = {
-      alunoId,
-      cursoId,
-      dataMatricula: new Date().toISOString().split('T')[0], // YYYY-MM-DD
-      status: 'ATIVA'
-    };
-
-    return this.http.post(`${environment.apiUrl}/matriculas`, payload);
+    return this.http.post<any>(`${environment.apiUrl}/matriculas`, { cursoId });
   }
 
   verificarMatricula(cursoId: number) {

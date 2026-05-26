@@ -227,6 +227,75 @@ export interface UploadProgressEvent {
 }
 
 // ─────────────────────────────────────────────────────────
+// PROGRESSO / ALUNO
+// ─────────────────────────────────────────────────────────
+
+export interface AlunoProgresso {
+  id: string;
+  nome: string;
+  email: string;
+  totalCursosConcluidos: number;
+  saldoCursosExtras: number;
+  saldoMoedas: number;
+  tipoPlano: 'BASICO' | 'PREMIUM';
+  visibilidadePerfil: string;
+}
+
+export interface ProgressoModulo {
+  moduloId: number;
+  titulo: string;
+  ordem: number;
+  status: 'BLOQUEADO' | 'EM_ANDAMENTO' | 'CONCLUIDO';
+  percentualConcluido: number;
+}
+
+export interface MatriculaProgresso {
+  id: number;
+  cursoId: number;
+  status: string;
+  dataMatricula: string;
+  dataConclusao: string | null;
+  notaFinal: number | null;
+  totalModulos: number;
+  modulosConcluidos: number;
+  percentualConcluido: number;
+}
+
+export interface ConcluirModuloResponse {
+  modulosConcluidos: number;
+  totalModulos: number;
+  percentualConcluido: number;
+  proximoModulo: number;
+  cursoConcluido: boolean;
+}
+
+export interface SaldoMoedasResponse {
+  saldo: number;
+  historico: TransacaoMoedaItem[];
+}
+
+export interface TransacaoMoedaItem {
+  id: number;
+  quantidade: number;
+  tipo: string;
+  descricao: string;
+  dataHora: string;
+}
+
+export interface ProjetoFinalResponse {
+  id: number;
+  matriculaId: number;
+  aulaId: number;
+  urlArquivo: string;
+  comentario: string | null;
+  status: 'AGUARDANDO' | 'REVISAO' | 'APROVADO';
+  nota: number | null;
+  feedback: string | null;
+  dataEnvio: string;
+  dataAvaliacao: string | null;
+}
+
+// ─────────────────────────────────────────────────────────
 // DASHBOARD ALUNO
 // ─────────────────────────────────────────────────────────
 
