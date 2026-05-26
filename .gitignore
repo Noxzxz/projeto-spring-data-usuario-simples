@@ -95,6 +95,11 @@ node_modules/
 dist/
 coverage/
 
+# Nested frontend
+ead-platform/ead-platform/node_modules/
+ead-platform/ead-platform/.angular/
+ead-platform/ead-platform/dist/
+
 ### Angular/Vite/Webpack build ###
 src/main/resources/static/
 
