@@ -1,14 +1,56 @@
-### Java & Build Tools ###
+### =========================
+### Java & Build Tools
+### =========================
 /target/
-!.mvn/wrapper/maven-wrapper.jar
-!gradle/wrapper/gradle-wrapper.jar
 build/
 .gradle/
 bin/
 out/
 *.class
 
-### IDEs (IntelliJ, Eclipse, VS Code) ###
+# Maven / Gradle Wrapper
+!.mvn/wrapper/maven-wrapper.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+### =========================
+### Docker
+### =========================
+
+# Docker volumes / databases
+docker-data/
+volumes/
+data/
+
+# Docker compose override local
+docker-compose.override.yml
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Container logs
+*.log
+logs/
+docker-logs/
+
+# Temporary container files
+tmp/
+temp/
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Redis / Mongo / Postgres local persistence
+redis-data/
+mongo-data/
+postgres-data/
+
+### =========================
+### IDEs (IntelliJ, Eclipse, VS Code)
+### =========================
 .idea/
 *.iml
 *.iws
@@ -18,17 +60,54 @@ out/
 .factorypath
 .vscode/
 
-### Log Files ###
-*.log
-logs/
-
-### OS specific files ###
+### =========================
+### OS specific files
+### =========================
 .DS_Store
 .DS_Store?
 ._*
 Thumbs.db
 
-### Configurações Sensíveis (Opcional, mas recomendado) ###
-# Se você usa arquivos externos para senhas ou chaves de API
-.env
+### =========================
+### Sensitive Configurations
+### =========================
+
+# Spring profiles locais
 application-local.properties
+application-dev.properties
+application-secrets.properties
+
+# Chaves, certificados e secrets
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+
+# Kubernetes / Docker secrets
+secrets/
+*.secret
+
+### =========================
+### Node / Frontend (caso exista frontend no projeto)
+### =========================
+node_modules/
+dist/
+coverage/
+
+### Angular/Vite/Webpack build ###
+src/main/resources/static/
+
+### =========================
+### Test / Coverage
+### =========================
+coverage/
+*.coverage
+jacoco.exec
+
+### =========================
+### Misc
+### =========================
+*.swp
+*.swo
+*~
