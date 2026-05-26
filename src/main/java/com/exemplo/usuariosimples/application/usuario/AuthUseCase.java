@@ -9,6 +9,8 @@ import com.exemplo.usuariosimples.infrastructure.persistence.jpa.PessoaJpaReposi
 import com.exemplo.usuariosimples.infrastructure.security.JwtTokenProvider;
 import com.exemplo.usuariosimples.infrastructure.security.UserDetailsImpl;
 import com.exemplo.usuariosimples.interfaces.rest.usuario.dto.LoginResponseDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthUseCase {
 
     private static final long TOKEN_EXPIRATION = 86400000L;
+    private static final Logger log = LoggerFactory.getLogger(AuthUseCase.class);
 
     private final PessoaJpaRepository pessoaRepository;
     private final PasswordEncoder passwordEncoder;
@@ -59,6 +62,9 @@ public class AuthUseCase {
 
         UserDetailsImpl userDetails = new UserDetailsImpl(pessoa);
         String token = jwtTokenProvider.generateToken(userDetails);
+        log.debug("Token gerado para {} - email: {}, perfil: {}, id: {}",
+                pessoa.getNome().valor(), pessoa.getEmail().endereco(),
+                pessoa.getPerfil().name(), pessoa.getId());
 
         return new LoginResponseDTO(
                 token,

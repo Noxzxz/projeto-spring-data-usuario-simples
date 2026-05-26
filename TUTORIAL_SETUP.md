@@ -1,5 +1,7 @@
 # Tutorial: Como Rodar o Projeto em Outra Maquina
 
+> **Importante:** todos os comandos abaixo devem ser executados no **Prompt de Comando (CMD)**, nao no PowerShell.
+
 Este guia explica como configurar e rodar o projeto **Gamification API** do zero em qualquer computador.
 
 ---
@@ -134,7 +136,7 @@ curl -X POST http://localhost:8080/auth/login ^
 ### "Porta 8080 ja esta em uso"
 ```
 netstat -ano | findstr :8080
-Stop-Process -Id <PID> -Force
+taskkill /PID <PID> /F
 ```
 
 ### "Cannot load driver class: org.postgresql.Driver"
@@ -151,6 +153,29 @@ O Maven nao esta no PATH. Adicione a pasta `bin` do Maven ao PATH do sistema.
 
 ### Docker nao inicia
 Certifique-se de que o Docker Desktop esta aberto e rodando (bandeja do sistema).
+
+### "Error: cannot find module './build/index.cjs'" (erro do Angular)
+
+Isso acontece quando o pacote `@angular/build` nao compilou os modulos nativos.
+
+**Solucao (execute na pasta `ead-platform\ead-platform`):**
+```
+rmdir /s /q node_modules
+del package-lock.json
+npm cache clean --force
+npm install
+```
+
+**Se ainda nao funcionar, verifique:**
+
+1. O Node.js deve ser **18.19+, 20.11+ ou 22+** (Angular 19 nao funciona no Node 17, 19 ou 21):
+   ```
+   node --version
+   ```
+   Baixe a versao LTS em: https://nodejs.org
+
+2. **Visual C++ Redistributable** -- necessario no Windows para compilar modulos nativos:
+   Baixe e instale: https://aka.ms/vs/17/release/vc_redist.x64.exe
 
 ---
 

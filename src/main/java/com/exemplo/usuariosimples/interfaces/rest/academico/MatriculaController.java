@@ -1,15 +1,18 @@
 package com.exemplo.usuariosimples.interfaces.rest.academico;
 
+import com.exemplo.usuariosimples.application.academico.ConcluirModuloUseCase;
 import com.exemplo.usuariosimples.application.academico.MatricularAlunoUseCase;
 import com.exemplo.usuariosimples.domain.academico.entity.Matricula;
 import com.exemplo.usuariosimples.domain.academico.repository.MatriculaRepository;
 import com.exemplo.usuariosimples.infrastructure.security.UserDetailsImpl;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -19,11 +22,14 @@ public class MatriculaController {
 
     private final MatriculaRepository matriculaRepository;
     private final MatricularAlunoUseCase matricularAlunoUseCase;
+    private final ConcluirModuloUseCase concluirModuloUseCase;
 
     public MatriculaController(MatriculaRepository matriculaRepository,
-                               MatricularAlunoUseCase matricularAlunoUseCase) {
+                               MatricularAlunoUseCase matricularAlunoUseCase,
+                               ConcluirModuloUseCase concluirModuloUseCase) {
         this.matriculaRepository = matriculaRepository;
         this.matricularAlunoUseCase = matricularAlunoUseCase;
+        this.concluirModuloUseCase = concluirModuloUseCase;
     }
 
     @PostMapping
@@ -56,10 +62,40 @@ public class MatriculaController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PostMapping("/{id}/modulos/{ordem}/concluir")
+    public ResponseEntity<?> concluirModulo(@PathVariable Long id,
+                                             @PathVariable int ordem,
+                                             @RequestBody(required = false) ConcluirModuloRequest body) {
+        try {
+            Double nota = body != null ? body.nota() : null;
+            var response = concluirModuloUseCase.executar(id, ordem, nota);
+            return ResponseEntity.ok(response);
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("erro", e.getMessage()));
+        }
+    }
+
     private UUID extractUserId(Authentication authentication) {
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         return userDetails.getId();
     }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalState(IllegalStateException ex,
+                                                                   HttpServletRequest request) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(Map.of("erro", ex.getMessage(), "path", request.getRequestURI()));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex,
+                                                                      HttpServletRequest request) {
+        return ResponseEntity
+                .badRequest()
+                .body(Map.of("erro", ex.getMessage(), "path", request.getRequestURI()));
+    }
 }
 
 record MatriculaRequest(Long cursoId) {}
+record ConcluirModuloRequest(Double nota) {}
