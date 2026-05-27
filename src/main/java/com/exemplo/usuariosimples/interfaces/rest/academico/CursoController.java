@@ -3,13 +3,13 @@ package com.exemplo.usuariosimples.interfaces.rest.academico;
 import com.exemplo.usuariosimples.domain.academico.entity.Curso;
 import com.exemplo.usuariosimples.domain.academico.enums.StatusCurso;
 import com.exemplo.usuariosimples.domain.academico.repository.CursoRepository;
+import com.exemplo.usuariosimples.interfaces.rest.academico.dto.CursoResponseDTO;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/cursos")
@@ -29,15 +29,18 @@ public class CursoController {
     }
 
     @GetMapping
-    public ResponseEntity<?> listar() {
+    public ResponseEntity<List<CursoResponseDTO>> listar() {
         List<Curso> cursos = repository.findByStatus(StatusCurso.PUBLICADO);
-        return ResponseEntity.ok(cursos);
+        List<CursoResponseDTO> dtos = cursos.stream()
+                .map(CursoResponseDTO::from)
+                .toList();
+        return ResponseEntity.ok(dtos);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> buscar(@PathVariable Long id) {
+    public ResponseEntity<CursoResponseDTO> buscar(@PathVariable Long id) {
         return repository.findById(id)
-                .map(curso -> ResponseEntity.ok(curso))
+                .map(curso -> ResponseEntity.ok(CursoResponseDTO.from(curso)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -48,7 +51,7 @@ public class CursoController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> atualizar(@PathVariable Long id, @RequestBody Curso nova) {
+    public ResponseEntity<CursoResponseDTO> atualizar(@PathVariable Long id, @RequestBody Curso nova) {
         return repository.findById(id)
                 .map(c -> {
                     c.setTituloCurso(nova.getTituloCurso());
@@ -58,7 +61,7 @@ public class CursoController {
                     c.setNivel(nova.getNivel());
                     c.setPublicoAlvo(nova.getPublicoAlvo());
                     c.setConhecimentosPrevios(nova.getConhecimentosPrevios());
-                    return ResponseEntity.ok(repository.save(c));
+                    return ResponseEntity.ok(CursoResponseDTO.from(repository.save(c)));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

@@ -66,6 +66,12 @@ public class AuthUseCase {
                 pessoa.getNome().valor(), pessoa.getEmail().endereco(),
                 pessoa.getPerfil().name(), pessoa.getId());
 
+        String perfilFront = switch (pessoa.getPerfil()) {
+            case PROFESSOR -> "PROFESSOR";
+            case ADMINISTRADOR -> "ADMINISTRADOR";
+            default -> pessoa.getPerfil().name();
+        };
+
         return new LoginResponseDTO(
                 token,
                 "Bearer",
@@ -74,7 +80,7 @@ public class AuthUseCase {
                         pessoa.getId().toString(),
                         pessoa.getNome().valor(),
                         pessoa.getEmail().endereco(),
-                        pessoa.getPerfil().name()
+                        perfilFront
                 )
         );
     }

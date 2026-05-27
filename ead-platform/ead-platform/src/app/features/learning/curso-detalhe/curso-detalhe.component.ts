@@ -394,8 +394,7 @@ export class CourseDetailComponent implements OnInit {
       .pipe(finalize(() => this.loading = false))
       .subscribe({
         next: (res: any) => {
-          // A API retorna ApiResponse<CursoDetalhe>
-          this.curso = res.data;
+          this.curso = res;
         },
         error: () => this.router.navigate(['/catalogo'])
       });
