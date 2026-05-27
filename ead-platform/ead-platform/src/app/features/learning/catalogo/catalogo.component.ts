@@ -264,7 +264,7 @@ export class CatalogoComponent implements OnInit {
       .pipe(finalize(() => this.loading = false))
       .subscribe({
         next: (res) => {
-          this.cursos = res.content;
+          this.cursos = res;
         },
         error: (err) => {
           console.error('[Catálogo] Erro:', err);

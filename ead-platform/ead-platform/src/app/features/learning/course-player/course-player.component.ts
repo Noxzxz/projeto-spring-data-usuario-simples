@@ -1,8 +1,13 @@
-import { Component } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule, Router } from '@angular/router';
 import { HeaderComponent } from '../../../core/layout/header/header.component';
 import { SidebarComponent } from '../../../core/layout/sidebar/sidebar.component';
+import { AulaService } from '../../../core/services/aula.service';
+import { CursosService } from '../../../core/services/cursos.service';
+import { ProgressoService } from '../../../core/services/progresso.service';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { finalize } from 'rxjs';
 
 @Component({
   selector: 'app-course-player',
@@ -11,130 +16,138 @@ import { SidebarComponent } from '../../../core/layout/sidebar/sidebar.component
   template: `
     <div class="layout-wrapper">
       <app-header></app-header>
-      
       <div class="main-content">
         <app-sidebar></app-sidebar>
-        
         <main class="content-area">
-          <div class="player-container animate-fade-in">
-            <div class="video-section">
-              <div class="video-wrapper glass-panel">
-                <div class="video-placeholder">
-                  <i class="ph ph-play-circle play-icon"></i>
-                  <span>Reproduzir Aula</span>
-                </div>
-              </div>
-              
-              <div class="lesson-info">
-                <h1 class="lesson-title">1. Introdução ao Componente Autônomo (Standalone)</h1>
-                <p class="course-title">Curso: Angular 19 Avançado</p>
-                
-                <div class="lesson-actions">
-                  <button class="btn btn-secondary">
-                    <i class="ph ph-arrow-left"></i> Anterior
-                  </button>
-                  <button class="btn btn-primary">
-                    Próxima <i class="ph ph-arrow-right"></i>
-                  </button>
+          <!-- Loading -->
+          @if (carregando()) {
+            <div class="loading-state">
+              <i class="ph ph-spinner"></i>
+              <p>Carregando aula...</p>
+            </div>
+          }
+
+          <!-- Error -->
+          @if (erro()) {
+            <div class="error-state">
+              <p>{{ erro() }}</p>
+              <button class="btn btn-secondary" (click)="voltar()">Voltar</button>
+            </div>
+          }
+
+          <!-- Content -->
+          @if (aula() && !carregando()) {
+            <div class="player-container animate-fade-in">
+              <div class="video-section">
+                @if (aula().tipoConteudo === 'VIDEO') {
+                  <div class="video-wrapper glass-panel">
+                    <iframe [src]="videoUrl()" frameborder="0" allowfullscreen class="video-iframe"></iframe>
+                  </div>
+                } @else if (aula().tipoConteudo === 'PDF' || aula().tipoConteudo === 'LINK') {
+                  <div class="material-card glass-panel">
+                    <i class="ph ph-file-text material-icon"></i>
+                    <h3>{{ aula().titulo }}</h3>
+                    <p>{{ aula().descricao }}</p>
+                    <a [href]="aula().url" target="_blank" class="btn btn-primary">
+                      <i class="ph ph-external-link"></i> Abrir Material
+                    </a>
+                  </div>
+                }
+
+                <div class="lesson-info">
+                  <h1 class="lesson-title">{{ aula().titulo }}</h1>
+                  <p class="lesson-desc">{{ aula().descricao }}</p>
+
+                  <div class="lesson-actions">
+                    <button class="btn btn-secondary" (click)="voltar()">
+                      <i class="ph ph-arrow-left"></i> Voltar
+                    </button>
+                    <button class="btn btn-primary"
+                            [disabled]="concluindo()"
+                            (click)="concluirModulo()">
+                      @if (concluindo()) {
+                        <i class="ph ph-spinner"></i> Processando...
+                      } @else {
+                        <i class="ph ph-check"></i> Marcar como Concluída
+                      }
+                    </button>
+                  </div>
+
+                  @if (mensagem()) {
+                    <div class="toast" [class.success]="mensagemTipo() === 'success'"
+                         [class.error]="mensagemTipo() === 'error'">
+                      {{ mensagem() }}
+                    </div>
+                  }
+
+                  @if (cursoConcluido()) {
+                    <div class="course-complete-banner">
+                      <i class="ph ph-trophy"></i>
+                      <div>
+                        <h3>Parabéns! Curso concluído!</h3>
+                        <p>Você concluiu todos os módulos deste curso.</p>
+                      </div>
+                    </div>
+                  }
                 </div>
               </div>
 
-              <div class="lesson-tabs">
-                <div class="tab active">Visão Geral</div>
-                <div class="tab">Materiais (2)</div>
-                <div class="tab">Anotações</div>
-              </div>
+              <div class="modules-sidebar glass-panel">
+                <div class="sidebar-header">
+                  <h3>Conteúdo do Curso</h3>
+                  <span class="progress-text">{{ percentualGlobal() }}% concluído</span>
+                </div>
 
-              <div class="lesson-description glass-panel">
-                <h3>Sobre esta aula</h3>
-                <p>Nesta aula, exploraremos os fundamentos dos componentes autônomos introduzidos no Angular 14 e que se tornaram o padrão no Angular 19. Você aprenderá como criar, configurar e usar esses componentes sem precisar declará-los em um NgModule.</p>
-                <a routerLink="/projetos/enviar" class="btn btn-secondary mt-3">
-                  <i class="ph ph-upload-simple"></i> Enviar Atividade Desta Aula
-                </a>
+                <div class="progress-bar-container">
+                  <div class="progress-bar" [style.width.%]="percentualGlobal()"></div>
+                </div>
+
+                <div class="module-list">
+                  @for (modulo of modulos(); track modulo.id) {
+                    <div class="module">
+                      <div class="module-title">
+                        <div>
+                          <h4>{{ modulo.titulo }}</h4>
+                          <span class="module-meta">{{ modulo.aulas?.length || 0 }} aulas</span>
+                        </div>
+                        <i class="ph" [class.ph-caret-up]="moduloExpandido(modulo.id)"
+                           [class.ph-caret-down]="!moduloExpandido(modulo.id)"></i>
+                      </div>
+                      @if (moduloExpandido(modulo.id)) {
+                        <div class="lesson-list">
+                          @for (aulaItem of modulo.aulas; track aulaItem.id) {
+                            <div class="lesson-item"
+                                 [class.active]="aulaItem.id === aula()?.id"
+                                 [class.bloqueado]="getStatusAula(modulo.ordem) === 'BLOQUEADO'"
+                                 (click)="navegarParaAula(aulaItem.id)">
+                              <div class="lesson-status" [class.completed]="getStatusAula(modulo.ordem) === 'CONCLUIDO'">
+                                <i class="ph"
+                                   [class.ph-check-circle]="getStatusAula(modulo.ordem) === 'CONCLUIDO'"
+                                   [class.ph-play-circle]="getStatusAula(modulo.ordem) === 'EM_ANDAMENTO'"
+                                   [class.ph-lock]="getStatusAula(modulo.ordem) === 'BLOQUEADO'"></i>
+                              </div>
+                              <div class="lesson-details">
+                                <span class="lesson-name">{{ aulaItem.titulo }}</span>
+                                <span class="lesson-type">{{ tipoLabel(aulaItem.tipoConteudo) }}</span>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
               </div>
             </div>
-
-            <div class="modules-sidebar glass-panel">
-              <div class="sidebar-header">
-                <h3>Conteúdo do Curso</h3>
-                <span class="progress-text">45% concluído</span>
-              </div>
-              
-              <div class="module-list">
-                <!-- Module 1 -->
-                <div class="module expanded">
-                  <div class="module-title">
-                    <div>
-                      <h4>Módulo 1: Fundamentos</h4>
-                      <span class="module-meta">3 aulas • 45 min</span>
-                    </div>
-                    <i class="ph ph-caret-up"></i>
-                  </div>
-                  <div class="lesson-list">
-                    <div class="lesson-item active">
-                      <div class="lesson-status completed">
-                        <i class="ph ph-check-circle"></i>
-                      </div>
-                      <div class="lesson-details">
-                        <span class="lesson-name">1. Introdução ao Componente Autônomo</span>
-                        <span class="lesson-time">15:00</span>
-                      </div>
-                    </div>
-                    <div class="lesson-item">
-                      <div class="lesson-status">
-                        <i class="ph ph-circle"></i>
-                      </div>
-                      <div class="lesson-details">
-                        <span class="lesson-name">2. Roteamento com Standalone</span>
-                        <span class="lesson-time">20:30</span>
-                      </div>
-                    </div>
-                    <div class="lesson-item">
-                      <div class="lesson-status">
-                        <i class="ph ph-circle"></i>
-                      </div>
-                      <div class="lesson-details">
-                        <span class="lesson-name">3. Injeção de Dependência</span>
-                        <span class="lesson-time">10:45</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Module 2 -->
-                <div class="module">
-                  <div class="module-title">
-                    <div>
-                      <h4>Módulo 2: Sinais (Signals)</h4>
-                      <span class="module-meta">4 aulas • 1h 20m</span>
-                    </div>
-                    <i class="ph ph-caret-down"></i>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          }
         </main>
       </div>
     </div>
   `,
   styles: [`
-    .layout-wrapper {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .main-content {
-      display: flex;
-      flex: 1;
-    }
-
-    .content-area {
-      flex: 1;
-      padding: var(--spacing-xl);
-      padding-top: 2rem;
-    }
+    .layout-wrapper { min-height: 100vh; display: flex; flex-direction: column; }
+    .main-content { display: flex; flex: 1; }
+    .content-area { flex: 1; padding: var(--spacing-xl); padding-top: 2rem; }
 
     .player-container {
       display: grid;
@@ -144,104 +157,67 @@ import { SidebarComponent } from '../../../core/layout/sidebar/sidebar.component
       margin: 0 auto;
     }
 
-    /* Video Section */
     .video-wrapper {
       width: 100%;
       aspect-ratio: 16 / 9;
       background: #000;
       border-radius: var(--radius-lg);
-      display: flex;
-      align-items: center;
-      justify-content: center;
       overflow: hidden;
       margin-bottom: 1.5rem;
     }
 
-    .video-placeholder {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      color: rgba(255, 255, 255, 0.5);
-      cursor: pointer;
-      transition: all var(--transition-fast);
+    .video-iframe {
+      width: 100%;
+      height: 100%;
     }
 
-    .video-placeholder:hover {
-      color: var(--primary-color);
-      transform: scale(1.05);
-    }
-
-    .play-icon {
-      font-size: 5rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .lesson-info {
-      margin-bottom: 2rem;
-    }
-
-    .lesson-title {
-      font-size: 1.75rem;
-      margin-bottom: 0.25rem;
-    }
-
-    .course-title {
-      color: var(--text-muted);
-      font-size: 1rem;
+    .material-card {
+      padding: 3rem;
+      text-align: center;
       margin-bottom: 1.5rem;
     }
 
+    .material-icon {
+      font-size: 5rem;
+      color: var(--primary-color);
+      margin-bottom: 1rem;
+    }
+
+    .lesson-info { margin-bottom: 2rem; }
+    .lesson-title { font-size: 1.75rem; margin-bottom: 0.5rem; }
+    .lesson-desc { color: var(--text-muted); margin-bottom: 1.5rem; }
+
     .lesson-actions {
       display: flex;
-      justify-content: space-between;
+      gap: 1rem;
       border-top: 1px solid var(--border-color);
       padding-top: 1.5rem;
     }
 
-    .lesson-tabs {
-      display: flex;
-      gap: 2rem;
-      border-bottom: 1px solid var(--border-color);
-      margin-bottom: 1.5rem;
-    }
-
-    .tab {
-      padding: 0.75rem 0;
+    .toast {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-md);
       font-weight: 500;
-      color: var(--text-muted);
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      transition: all var(--transition-fast);
     }
 
-    .tab:hover {
-      color: var(--text-main);
-    }
+    .toast.success { background: rgba(16,185,129,0.15); color: var(--secondary-color); }
+    .toast.error { background: rgba(239,68,68,0.15); color: var(--danger-color); }
 
-    .tab.active {
-      color: var(--primary-color);
-      border-bottom-color: var(--primary-color);
-    }
-
-    .lesson-description {
-      padding: 1.5rem;
-    }
-
-    .lesson-description h3 {
-      margin-bottom: 1rem;
-      font-size: 1.2rem;
-    }
-
-    .lesson-description p {
-      color: var(--text-muted);
-      line-height: 1.6;
-    }
-
-    .mt-3 {
+    .course-complete-banner {
       margin-top: 1.5rem;
+      padding: 1.5rem;
+      background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05));
+      border: 1px solid rgba(245,158,11,0.3);
+      border-radius: var(--radius-lg);
+      display: flex;
+      gap: 1rem;
+      align-items: center;
     }
 
-    /* Modules Sidebar */
+    .course-complete-banner i { font-size: 2.5rem; color: #f59e0b; }
+
+    /* Module Sidebar */
     .modules-sidebar {
       padding: 1.5rem;
       height: fit-content;
@@ -255,18 +231,29 @@ import { SidebarComponent } from '../../../core/layout/sidebar/sidebar.component
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1rem;
       padding-bottom: 1rem;
       border-bottom: 1px solid var(--border-color);
     }
 
-    .sidebar-header h3 {
-      font-size: 1.2rem;
+    .sidebar-header h3 { font-size: 1.1rem; }
+    .progress-text { font-size: 0.85rem; color: var(--primary-color); font-weight: 600; }
+
+    .progress-bar-container {
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+      margin-bottom: 1.5rem;
     }
 
-    .module {
-      margin-bottom: 1rem;
+    .progress-bar {
+      height: 100%;
+      background: var(--primary-color);
+      border-radius: 2px;
+      transition: width 0.3s ease;
     }
+
+    .module { margin-bottom: 1rem; }
 
     .module-title {
       display: flex;
@@ -274,30 +261,18 @@ import { SidebarComponent } from '../../../core/layout/sidebar/sidebar.component
       align-items: center;
       cursor: pointer;
       padding: 0.75rem;
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(255,255,255,0.03);
       border-radius: var(--radius-md);
-      transition: background var(--transition-fast);
     }
 
-    .module-title:hover {
-      background: rgba(255, 255, 255, 0.08);
-    }
-
-    .module-title h4 {
-      font-size: 0.95rem;
-      margin-bottom: 0.2rem;
-    }
-
-    .module-meta {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-    }
+    .module-title h4 { font-size: 0.9rem; margin-bottom: 0.2rem; }
+    .module-meta { font-size: 0.75rem; color: var(--text-muted); }
 
     .lesson-list {
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
-      padding: 0.5rem 0 0.5rem 1rem;
+      gap: 0.25rem;
+      padding: 0.5rem 0 0.5rem 0.5rem;
     }
 
     .lesson-item {
@@ -309,55 +284,246 @@ import { SidebarComponent } from '../../../core/layout/sidebar/sidebar.component
       transition: all var(--transition-fast);
     }
 
-    .lesson-item:hover {
-      background: rgba(255, 255, 255, 0.05);
+    .lesson-item:hover { background: rgba(255,255,255,0.05); }
+    .lesson-item.active { background: rgba(139,92,246,0.1); border-left: 2px solid var(--primary-color); }
+    .lesson-item.bloqueado { opacity: 0.4; cursor: not-allowed; }
+
+    .lesson-status { display: flex; align-items: center; color: var(--text-muted); font-size: 1.2rem; }
+    .lesson-status.completed { color: var(--secondary-color); }
+
+    .lesson-details { display: flex; flex-direction: column; }
+    .lesson-name { font-size: 0.85rem; font-weight: 500; }
+    .lesson-type { font-size: 0.7rem; color: var(--text-muted); }
+
+    .btn {
+      padding: 0.6rem 1.2rem; border-radius: var(--radius-md); font-weight: 600;
+      font-size: 0.85rem; cursor: pointer; border: none; text-decoration: none;
+      display: inline-flex; align-items: center; gap: 0.5rem;
     }
 
-    .lesson-item.active {
-      background: rgba(139, 92, 246, 0.1);
-      border-left: 2px solid var(--primary-color);
-    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--primary-color); color: white; }
+    .btn-secondary { background: rgba(255,255,255,0.1); color: var(--text-main); }
 
-    .lesson-status {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-muted);
-      font-size: 1.2rem;
-    }
-
-    .lesson-status.completed {
-      color: var(--secondary-color);
-    }
-
-    .lesson-details {
+    .loading-state, .error-state {
       display: flex;
       flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem;
+      gap: 1rem;
     }
 
-    .lesson-name {
-      font-size: 0.9rem;
-      font-weight: 500;
-    }
-
-    .lesson-item.active .lesson-name {
-      color: var(--primary-color);
-    }
-
-    .lesson-time {
-      font-size: 0.75rem;
-      color: var(--text-muted);
+    .btn-secondary {
+      background: rgba(255,255,255,0.1);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
     }
 
     @media (max-width: 1024px) {
-      .player-container {
-        grid-template-columns: 1fr;
-      }
-      .modules-sidebar {
-        position: static;
-        max-height: none;
-      }
+      .player-container { grid-template-columns: 1fr; }
+      .modules-sidebar { position: static; max-height: none; }
     }
   `]
 })
-export class CoursePlayerComponent {}
+export class CoursePlayerComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private aulaService = inject(AulaService);
+  private cursosService = inject(CursosService);
+  private progressoService = inject(ProgressoService);
+  private sanitizer = inject(DomSanitizer);
+
+  aula = signal<any>(null);
+  curso = signal<any>(null);
+  modulos = signal<any[]>([]);
+  matriculaId = signal<number | null>(null);
+  progresso = signal<any>(null);
+  modulosConcluidosData = signal<Set<number>>(new Set());
+  modulosExpandidos = signal<Set<number>>(new Set([1]));
+  carregando = signal(true);
+  erro = signal<string | null>(null);
+  concluindo = signal(false);
+  mensagem = signal<string | null>(null);
+  mensagemTipo = signal<'success' | 'error'>('success');
+  cursoConcluido = signal(false);
+
+  videoUrl = signal<SafeResourceUrl | null>(null);
+
+  ngOnInit() {
+    const aulaId = Number(this.route.snapshot.params['id']);
+    const matriculaId = Number(this.route.snapshot.queryParams['matricula']);
+
+    if (!aulaId) {
+      this.erro.set('Aula não encontrada');
+      this.carregando.set(false);
+      return;
+    }
+
+    this.matriculaId.set(matriculaId || null);
+    this.carregarAula(aulaId);
+  }
+
+  private carregarAula(aulaId: number): void {
+    this.aulaService.buscarPorId(aulaId).subscribe({
+      next: (aulaData) => {
+        this.aula.set(aulaData);
+
+        if (aulaData.tipoConteudo === 'VIDEO' && aulaData.url) {
+          const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
+            this.converterParaEmbed(aulaData.url)
+          );
+          this.videoUrl.set(safeUrl);
+        }
+
+        this.carregarCurso(aulaData.cursoId);
+      },
+      error: () => {
+        this.erro.set('Erro ao carregar aula');
+        this.carregando.set(false);
+      }
+    });
+  }
+
+  private carregarCurso(cursoId: number): void {
+    this.cursosService.buscarPorId(cursoId).subscribe({
+      next: (res: any) => {
+        const cursoData = res.data || res;
+        this.curso.set(cursoData);
+        this.modulos.set(cursoData.modulos || []);
+
+        const ids = new Set<number>();
+        (cursoData.modulos || []).forEach((m: any) => ids.add(m.id));
+        this.modulosExpandidos.set(ids);
+
+        if (this.matriculaId()) {
+          this.carregarProgresso();
+        } else {
+          this.carregando.set(false);
+          this.buscarMatricula(cursoId);
+        }
+      },
+      error: () => {
+        this.erro.set('Erro ao carregar curso');
+        this.carregando.set(false);
+      }
+    });
+  }
+
+  private buscarMatricula(cursoId: number): void {
+    this.cursosService.verificarMatricula(cursoId)?.subscribe({
+      next: (matriculas: any[]) => {
+        const mat = matriculas.find((m: any) => m.cursoId === cursoId);
+        if (mat) {
+          this.matriculaId.set(mat.id);
+          this.carregarProgresso();
+        } else {
+          this.carregando.set(false);
+        }
+      },
+      error: () => this.carregando.set(false)
+    });
+  }
+
+  private carregarProgresso(): void {
+    const id = this.matriculaId();
+    if (!id) {
+      this.carregando.set(false);
+      return;
+    }
+
+    this.progressoService.getProgresso(id).subscribe({
+      next: (prog) => {
+        this.progresso.set(prog);
+        this.carregando.set(false);
+      },
+      error: () => this.carregando.set(false)
+    });
+  }
+
+  getStatusAula(ordemModulo: number): string {
+    const prog = this.progresso();
+    if (!prog) return ordemModulo <= 1 ? 'EM_ANDAMENTO' : 'BLOQUEADO';
+    const modConcluidos = prog.modulosConcluidos || 0;
+    if (ordemModulo <= modConcluidos) return 'CONCLUIDO';
+    if (ordemModulo === modConcluidos + 1) return 'EM_ANDAMENTO';
+    return 'BLOQUEADO';
+  }
+
+  percentualGlobal(): number {
+    const prog = this.progresso();
+    if (!prog) return 0;
+    return prog.percentualConcluido || 0;
+  }
+
+  moduloExpandido(moduloId: number): boolean {
+    return this.modulosExpandidos().has(moduloId);
+  }
+
+  navegarParaAula(aulaId: number): void {
+    this.router.navigate(['/aula', aulaId], {
+      queryParams: { matricula: this.matriculaId() }
+    }).then(() => window.location.reload());
+  }
+
+  concluirModulo(): void {
+    const matId = this.matriculaId();
+    if (!matId) {
+      this.mensagem.set('Matrícula não encontrada');
+      this.mensagemTipo.set('error');
+      return;
+    }
+
+    const aulaAtual = this.aula();
+    if (!aulaAtual) return;
+
+    this.concluindo.set(true);
+    this.mensagem.set(null);
+
+    this.progressoService.concluirModulo(matId, aulaAtual.ordem)
+      .pipe(finalize(() => this.concluindo.set(false)))
+      .subscribe({
+        next: (res) => {
+          this.mensagem.set('Aula concluída com sucesso!');
+          this.mensagemTipo.set('success');
+          this.carregarProgresso();
+
+          if (res.cursoConcluido) {
+            this.cursoConcluido.set(true);
+            this.mensagem.set('Parabéns! Curso concluído!');
+          }
+
+          setTimeout(() => this.mensagem.set(null), 3000);
+        },
+        error: (err) => {
+          this.mensagem.set(err.error?.erro || 'Erro ao concluir aula');
+          this.mensagemTipo.set('error');
+          setTimeout(() => this.mensagem.set(null), 3000);
+        }
+      });
+  }
+
+  voltar(): void {
+    this.router.navigate(['/catalogo']);
+  }
+
+  private converterParaEmbed(url: string): string {
+    if (url.includes('youtube.com/watch?v=')) {
+      return url.replace('watch?v=', 'embed/');
+    }
+    if (url.includes('youtu.be/')) {
+      return url.replace('youtu.be/', 'youtube.com/embed/');
+    }
+    return url;
+  }
+
+  tipoLabel(tipo: string): string {
+    const map: Record<string, string> = {
+      'VIDEO': 'Vídeo',
+      'PDF': 'Material PDF',
+      'LINK': 'Link Externo',
+      'AULA_SINCRONA_GRAVADA': 'Aula Gravada'
+    };
+    return map[tipo] || tipo;
+  }
+}

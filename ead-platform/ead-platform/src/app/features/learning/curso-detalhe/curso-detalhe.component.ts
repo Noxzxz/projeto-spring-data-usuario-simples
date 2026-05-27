@@ -394,8 +394,7 @@ export class CourseDetailComponent implements OnInit {
       .pipe(finalize(() => this.loading = false))
       .subscribe({
         next: (res: any) => {
-          // A API retorna ApiResponse<CursoDetalhe>
-          this.curso = res.data;
+          this.curso = res;
         },
         error: () => this.router.navigate(['/catalogo'])
       });
@@ -408,9 +407,8 @@ export class CourseDetailComponent implements OnInit {
   }
 
   onMatricular(): void {
-    if (this.jaMatriculado) {
-      // Ir para o player de aula (rota mock por enquanto)
-      this.router.navigate(['/aula', this.curso?.id]);
+    if (this.jaMatriculado && this.curso) {
+      this.carregarMatriculaEIrParaAula(this.curso.id);
       return;
     }
 
@@ -420,11 +418,27 @@ export class CourseDetailComponent implements OnInit {
     this.cursosService.matricular(this.curso.id)
       .pipe(finalize(() => this.enrolling = false))
       .subscribe({
-        next: () => {
+        next: (matricula: any) => {
           this.jaMatriculado = true;
-          // Feedback opcional ou navegação direta
+          this.router.navigate(['/aula', this.curso?.id], {
+            queryParams: { matricula: matricula.id }
+          });
         },
         error: (err) => alert('Erro ao realizar matrícula. Tente novamente.')
       });
+  }
+
+  private carregarMatriculaEIrParaAula(cursoId: number): void {
+    this.cursosService.verificarMatricula(cursoId)?.subscribe((matriculas: any[]) => {
+      const matricula = matriculas.find((m: any) => m.cursoId === cursoId);
+      if (matricula) {
+        const primeiraAulaId = this.curso?.modulos?.[0]?.aulas?.[0]?.id;
+        if (primeiraAulaId) {
+          this.router.navigate(['/aula', primeiraAulaId], {
+            queryParams: { matricula: matricula.id }
+          });
+        }
+      }
+    });
   }
 }

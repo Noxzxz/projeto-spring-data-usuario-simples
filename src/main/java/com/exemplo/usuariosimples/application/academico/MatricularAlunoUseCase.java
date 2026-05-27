@@ -3,9 +3,9 @@ package com.exemplo.usuariosimples.application.academico;
 import com.exemplo.usuariosimples.domain.academico.entity.Curso;
 import com.exemplo.usuariosimples.domain.academico.entity.Matricula;
 import com.exemplo.usuariosimples.domain.academico.enums.StatusCurso;
+import com.exemplo.usuariosimples.domain.academico.repository.CursoRepository;
 import com.exemplo.usuariosimples.domain.academico.repository.MatriculaRepository;
 import com.exemplo.usuariosimples.domain.usuario.repository.AlunoRepository;
-import com.exemplo.usuariosimples.infrastructure.persistence.jpa.CursoJpaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,11 +15,11 @@ import java.util.UUID;
 public class MatricularAlunoUseCase {
 
     private final AlunoRepository alunoRepository;
-    private final CursoJpaRepository cursoRepository;
+    private final CursoRepository cursoRepository;
     private final MatriculaRepository matriculaRepository;
 
     public MatricularAlunoUseCase(AlunoRepository alunoRepository,
-                                  CursoJpaRepository cursoRepository,
+                                  CursoRepository cursoRepository,
                                   MatriculaRepository matriculaRepository) {
         this.alunoRepository = alunoRepository;
         this.cursoRepository = cursoRepository;

@@ -8,7 +8,7 @@ public record LoginResponseDTO(
 ) {
     public record UsuarioInfo(
             String id,
-            String nome,
+            String nomeCompleto,
             String email,
             String perfil
     ) {}

@@ -78,8 +78,7 @@ export class AuthService {
 
   register(payload: RegisterRequest) {
     return this.http
-      .post<AuthResponse>(`${this.base}/registrar`, payload)
-      .pipe(tap(res => this._persistSession(res)));
+      .post<void>(`${this.base}/register`, payload);
   }
 
   logout(): void {

@@ -248,8 +248,10 @@ export class LoginComponent implements OnInit {
       next: () => {
         this.loading = false;
         const perfil = this.auth.getUserPerfil();
-        if (perfil === 'INSTRUTOR') {
+        if (perfil === 'PROFESSOR' || perfil === 'INSTRUTOR') {
           this.router.navigate(['/instrutor/dashboard']);
+        } else if (perfil === 'ADMINISTRADOR' || perfil === 'ADMIN') {
+          this.router.navigate(['/dashboard']);
         } else {
           this.router.navigate(['/dashboard']);
         }

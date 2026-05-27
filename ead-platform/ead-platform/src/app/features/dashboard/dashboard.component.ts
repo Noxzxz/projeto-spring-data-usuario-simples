@@ -1,86 +1,167 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { FormsModule } from '@angular/forms';
 import { HeaderComponent } from '../../core/layout/header/header.component';
 import { SidebarComponent } from '../../core/layout/sidebar/sidebar.component';
-import { CursosService } from '../../core/services/cursos.service';
-import type { CursoSummary } from '../../core/models';
+import { AlunoService } from '../../core/services/aluno.service';
+import { GamificacaoService } from '../../core/services/gamificacao.service';
+import { AuthService } from '../../core/services/auth.service';
+import type { AlunoProgresso, SaldoMoedasResponse, MatriculaProgresso } from '../../core/models';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, HeaderComponent, SidebarComponent],
+  imports: [CommonModule, RouterModule, HeaderComponent, SidebarComponent],
   template: `
     <div class="layout-wrapper">
       <app-header></app-header>
-
       <div class="main-content">
         <app-sidebar></app-sidebar>
-
         <main class="content-area">
           <div class="container animate-fade-in">
+            <!-- Header -->
             <div class="page-header">
               <div>
-                <h1 class="page-title">Cursos Disponíveis</h1>
-                <p class="page-subtitle">Explore novos conhecimentos e expanda suas habilidades</p>
+                <h1 class="page-title">Olá, {{ usuarioNome }}</h1>
+                <p class="page-subtitle">Acompanhe seu progresso na plataforma</p>
               </div>
-              <div class="search-bar glass-panel">
-                <i class="ph ph-magnifying-glass"></i>
-                <input type="text" placeholder="Buscar cursos..." [(ngModel)]="termoBusca" (input)="filtrar()" id="input-busca">
-              </div>
-            </div>
-
-            <div class="filters">
-              <button class="filter-btn" [class.active]="filtroAtivo === 'TODOS'" (click)="setFiltro('TODOS')">Todos</button>
-              <button class="filter-btn" [class.active]="filtroAtivo === 'Frontend'" (click)="setFiltro('Frontend')">Frontend</button>
-              <button class="filter-btn" [class.active]="filtroAtivo === 'Backend'" (click)="setFiltro('Backend')">Backend</button>
-              <button class="filter-btn" [class.active]="filtroAtivo === 'Design'" (click)="setFiltro('Design')">Design</button>
             </div>
 
             <!-- Loading -->
-            <div *ngIf="carregando()" class="loading-state glass-panel">
-              <i class="ph ph-spinner"></i>
-              <p>Carregando cursos...</p>
-            </div>
+            @if (carregando()) {
+              <div class="loading-state">
+                <i class="ph ph-spinner"></i>
+                <p>Carregando dados...</p>
+              </div>
+            }
 
-            <!-- Erro -->
-            <div *ngIf="erro()" class="error-state glass-panel">
-              <i class="ph ph-warning-circle"></i>
-              <p>Não foi possível carregar os cursos. Verifique se o backend está rodando.</p>
-            </div>
+            <!-- Error -->
+            @if (erro()) {
+              <div class="error-state glass-panel">
+                <i class="ph ph-warning-circle"></i>
+                <p>Não foi possível carregar os dados. Verifique se o backend está rodando.</p>
+                <button class="btn btn-secondary" (click)="carregarDados()">Tentar Novamente</button>
+              </div>
+            }
 
-            <!-- Grade de Cursos -->
-            <div class="course-grid" *ngIf="!carregando() && !erro()">
-              <div class="course-card glass-panel" *ngFor="let curso of cursosFiltrados()">
-                <div class="course-image"
-                     [style.background-image]="'url(' + (curso.capUrl || imgFallback) + ')'">
-                  <span class="badge" [ngClass]="badgeClass(curso.categoria)">{{ curso.categoria }}</span>
-                  <span class="nivel-tag">{{ nivelLabel(curso.nivel) }}</span>
-                </div>
-                <div class="course-content">
-                  <h3 class="course-title">{{ curso.titulo }}</h3>
-                  <p class="course-desc">{{ curso.descricao }}</p>
-
-                  <div class="course-meta">
-                    <span><i class="ph ph-users"></i> {{ curso.totalAlunos }} alunos</span>
-                    <span><i class="ph ph-clock"></i> {{ curso.duracaoTotal }}</span>
-                    <span *ngIf="curso.avaliacao"><i class="ph ph-star"></i> {{ curso.avaliacao }}</span>
+            @if (!carregando() && !erro()) {
+              <!-- Stats Cards -->
+              <div class="stats-grid">
+                <div class="stat-card glass-panel">
+                  <div class="stat-icon plan-icon">
+                    <i class="ph ph-crown-simple"></i>
                   </div>
+                  <div class="stat-info">
+                    <label>Plano</label>
+                    <span class="stat-value" [class.premium]="progresso()?.tipoPlano === 'PREMIUM'">
+                      {{ progresso()?.tipoPlano || 'BASICO' }}
+                    </span>
+                  </div>
+                </div>
 
-                  <div class="course-footer">
-                    <span class="course-price">R$ {{ curso.preco | number:'1.2-2' }}</span>
-                    <a routerLink="/matricula/planos" class="btn btn-primary">Matricular-se</a>
+                <div class="stat-card glass-panel">
+                  <div class="stat-icon cursos-icon">
+                    <i class="ph ph-book-open"></i>
+                  </div>
+                  <div class="stat-info">
+                    <label>Cursos Concluídos</label>
+                    <span class="stat-value">{{ progresso()?.totalCursosConcluidos || 0 }}</span>
+                  </div>
+                </div>
+
+                <div class="stat-card glass-panel">
+                  <div class="stat-icon extras-icon">
+                    <i class="ph ph-gift"></i>
+                  </div>
+                  <div class="stat-info">
+                    <label>Cursos Extras</label>
+                    <span class="stat-value">{{ progresso()?.saldoCursosExtras || 0 }}</span>
+                  </div>
+                </div>
+
+                <div class="stat-card glass-panel">
+                  <div class="stat-icon moedas-icon">
+                    <i class="ph ph-coins"></i>
+                  </div>
+                  <div class="stat-info">
+                    <label>Moedas</label>
+                    <span class="stat-value">{{ saldoMoedas() }}</span>
                   </div>
                 </div>
               </div>
 
-              <!-- Vazio -->
-              <div *ngIf="cursosFiltrados().length === 0" class="empty-state glass-panel">
-                <i class="ph ph-books"></i>
-                <p>Nenhum curso encontrado.</p>
+              <!-- Upgrade Banner -->
+              @if (mostrarUpgradeBanner()) {
+                <div class="upgrade-banner glass-panel">
+                  <i class="ph ph-rocket-launch"></i>
+                  <div class="upgrade-content">
+                    <h3>Falta pouco para o Premium!</h3>
+                    <p>Conclua mais {{ 12 - (progresso()?.totalCursosConcluidos || 0) }} cursos para desbloquear benefícios exclusivos.</p>
+                  </div>
+                  <div class="upgrade-progress">
+                    <div class="upgrade-bar">
+                      <div class="upgrade-fill" [style.width.%]="upgradePercentual()"></div>
+                    </div>
+                    <span>{{ progresso()?.totalCursosConcluidos || 0 }}/12</span>
+                  </div>
+                </div>
+              }
+
+              <!-- Premium Banner -->
+              @if (progresso()?.tipoPlano === 'PREMIUM') {
+                <div class="premium-banner glass-panel">
+                  <i class="ph ph-crown"></i>
+                  <div>
+                    <h3>Parabéns, você é Premium!</h3>
+                    <p>Aproveite todos os benefícios do plano Premium.</p>
+                  </div>
+                </div>
+              }
+
+              <!-- Active Enrollments -->
+              <div class="section">
+                <h2 class="section-title">Minhas Matrículas</h2>
+                @if (matriculas().length === 0) {
+                  <div class="empty-state glass-panel">
+                    <i class="ph ph-book"></i>
+                    <p>Você ainda não está matriculado em nenhum curso.</p>
+                    <a routerLink="/catalogo" class="btn btn-primary">Ver Cursos</a>
+                  </div>
+                } @else {
+                  <div class="enrollments-list">
+                    @for (mat of matriculas(); track mat.id) {
+                      <div class="enrollment-card glass-panel">
+                        <div class="enrollment-header">
+                          <h3>Curso #{{ mat.cursoId }}</h3>
+                          <span class="status-badge" [class.active]="mat.status === 'EM_ANDAMENTO'"
+                                [class.done]="mat.status === 'CONCLUIDA'">
+                            {{ mat.status }}
+                          </span>
+                        </div>
+                        <div class="enrollment-progress">
+                          <div class="enr-progress-bar">
+                            <div class="enr-progress-fill" [style.width.%]="mat.percentualConcluido"></div>
+                          </div>
+                          <span class="enr-percent">{{ mat.percentualConcluido | number:'1.0-0' }}%</span>
+                        </div>
+                        <div class="enrollment-meta">
+                          <span>Módulos: {{ mat.modulosConcluidos }}/{{ mat.totalModulos }}</span>
+                          @if (mat.notaFinal) {
+                            <span>Nota: {{ mat.notaFinal }}</span>
+                          }
+                        </div>
+                        @if (mat.status === 'EM_ANDAMENTO') {
+                          <a [routerLink]="['/aula', mat.cursoId]" [queryParams]="{matricula: mat.id}"
+                             class="btn btn-primary btn-sm">
+                            <i class="ph ph-play"></i> Continuar
+                          </a>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
               </div>
-            </div>
+            }
           </div>
         </main>
       </div>
@@ -89,128 +170,224 @@ import type { CursoSummary } from '../../core/models';
   styles: [`
     .layout-wrapper { min-height: 100vh; display: flex; flex-direction: column; }
     .main-content { display: flex; flex: 1; }
-    .content-area { flex: 1; padding-bottom: var(--spacing-xl); }
+    .content-area { flex: 1; padding: var(--spacing-xl); }
 
-    .page-header {
-      display: flex; justify-content: space-between; align-items: flex-end;
-      margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;
-    }
+    .page-header { margin-bottom: 2rem; }
     .page-title { font-size: 2rem; margin-bottom: 0.5rem; }
     .page-subtitle { color: var(--text-muted); }
 
-    .search-bar {
-      display: flex; align-items: center; padding: 0.75rem 1rem; width: 300px; gap: 0.5rem;
-    }
-    .search-bar i { color: var(--text-muted); font-size: 1.2rem; }
-    .search-bar input { background: transparent; border: none; color: var(--text-main); width: 100%; font-family: var(--font-family); }
-    .search-bar input:focus { outline: none; }
-
-    .filters { display: flex; gap: 0.5rem; margin-bottom: 2rem; overflow-x: auto; padding-bottom: 0.5rem; }
-    .filter-btn {
-      background: rgba(255,255,255,0.05); border: 1px solid var(--border-color);
-      color: var(--text-muted); padding: 0.5rem 1.25rem; border-radius: var(--radius-full);
-      font-family: var(--font-family); font-size: 0.9rem; font-weight: 500;
-      cursor: pointer; white-space: nowrap; transition: all var(--transition-fast);
-    }
-    .filter-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-main); }
-    .filter-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
-
-    .course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
-
-    .course-card { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
-    .course-image { height: 180px; background-size: cover; background-position: center; position: relative; }
-
-    .badge {
-      position: absolute; top: 1rem; left: 1rem; padding: 0.25rem 0.75rem;
-      border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 600; backdrop-filter: blur(4px);
-    }
-    .badge-frontend { background: rgba(139,92,246,0.8); color: white; }
-    .badge-backend  { background: rgba(16,185,129,0.8);  color: white; }
-    .badge-design   { background: rgba(239,68,68,0.8);   color: white; }
-    .badge-default  { background: rgba(100,116,139,0.8); color: white; }
-
-    .nivel-tag {
-      position: absolute; bottom: 0.75rem; right: 0.75rem; background: rgba(0,0,0,0.6);
-      color: white; padding: 0.2rem 0.6rem; border-radius: var(--radius-full); font-size: 0.7rem;
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
     }
 
-    .course-content { padding: 1.5rem; display: flex; flex-direction: column; flex: 1; }
-    .course-title { font-size: 1.1rem; margin-bottom: 0.4rem; }
-    .course-desc { font-size: 0.83rem; color: var(--text-muted); margin-bottom: 1rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-
-    .course-meta { display: flex; gap: 1rem; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem; flex-wrap: wrap; }
-    .course-meta span { display: flex; align-items: center; gap: 0.3rem; }
-
-    .course-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
-    .course-price { font-size: 1.1rem; font-weight: 700; color: var(--secondary-color); }
-
-    .loading-state, .error-state, .empty-state {
-      grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center;
-      justify-content: center; padding: 3rem; gap: 1rem; color: var(--text-muted);
+    .stat-card {
+      padding: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
     }
-    .loading-state i, .error-state i, .empty-state i { font-size: 3rem; }
 
-    .btn { padding: 0.5rem 1.2rem; border-radius: var(--radius-md); font-weight: 600; font-size: 0.85rem; text-decoration: none; cursor: pointer; }
-    .btn-primary { background: var(--primary-color); color: white; border: none; }
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    .plan-icon { background: rgba(139,92,246,0.15); color: var(--primary-color); }
+    .cursos-icon { background: rgba(16,185,129,0.15); color: var(--secondary-color); }
+    .extras-icon { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .moedas-icon { background: rgba(59,130,246,0.15); color: #3b82f6; }
+
+    .stat-info label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem; }
+    .stat-value { font-size: 1.5rem; font-weight: 700; }
+    .stat-value.premium { color: #f59e0b; }
+
+    .upgrade-banner, .premium-banner {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .upgrade-banner { background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(59,130,246,0.05)); }
+    .premium-banner { background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05)); }
+
+    .upgrade-banner i, .premium-banner i { font-size: 2.5rem; }
+    .upgrade-banner i { color: var(--primary-color); }
+    .premium-banner i { color: #f59e0b; }
+
+    .upgrade-content { flex: 1; }
+    .upgrade-content h3 { margin-bottom: 0.25rem; }
+    .upgrade-content p { font-size: 0.85rem; color: var(--text-muted); }
+
+    .upgrade-progress { text-align: center; min-width: 120px; }
+    .upgrade-bar {
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      margin-bottom: 0.5rem;
+      overflow: hidden;
+    }
+    .upgrade-fill {
+      height: 100%;
+      background: var(--primary-color);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+    .upgrade-progress span { font-size: 0.85rem; font-weight: 600; color: var(--primary-color); }
+
+    .section { margin-bottom: 3rem; }
+    .section-title { font-size: 1.5rem; margin-bottom: 1.5rem; }
+
+    .enrollments-list { display: flex; flex-direction: column; gap: 1rem; }
+
+    .enrollment-card { padding: 1.5rem; }
+    .enrollment-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .enrollment-header h3 { font-size: 1.1rem; }
+
+    .status-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: rgba(100,116,139,0.2);
+      color: var(--text-muted);
+    }
+    .status-badge.active { background: rgba(16,185,129,0.15); color: var(--secondary-color); }
+    .status-badge.done { background: rgba(59,130,246,0.15); color: #3b82f6; }
+
+    .enrollment-progress {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    .enr-progress-bar {
+      flex: 1;
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .enr-progress-fill {
+      height: 100%;
+      background: var(--secondary-color);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+    .enr-percent { font-size: 0.85rem; font-weight: 600; color: var(--secondary-color); }
+
+    .enrollment-meta {
+      display: flex;
+      gap: 1.5rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3rem;
+      gap: 1rem;
+      color: var(--text-muted);
+    }
+    .empty-state i { font-size: 3rem; }
+
+    .loading-state, .error-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 4rem;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      padding: 0.6rem 1.2rem; border-radius: var(--radius-md); font-weight: 600;
+      font-size: 0.85rem; cursor: pointer; border: none; text-decoration: none;
+      display: inline-flex; align-items: center; gap: 0.5rem;
+    }
+    .btn-primary { background: var(--primary-color); color: white; }
+    .btn-secondary { background: rgba(255,255,255,0.1); color: var(--text-main); border: 1px solid var(--border-color); }
+    .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
   `]
 })
 export class DashboardComponent implements OnInit {
-  private cursosService = inject(CursosService);
+  private alunoService = inject(AlunoService);
+  private gamificacaoService = inject(GamificacaoService);
+  private authService = inject(AuthService);
 
   carregando = signal(true);
   erro = signal(false);
-  cursos = signal<CursoSummary[]>([]);
-  cursosFiltrados = signal<CursoSummary[]>([]);
+  progresso = signal<AlunoProgresso | null>(null);
+  matriculas = signal<MatriculaProgresso[]>([]);
+  saldoMoedas = signal(0);
 
-  filtroAtivo = 'TODOS';
-  termoBusca = '';
-  imgFallback = 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&q=80';
+  get usuarioNome(): string {
+    const u = this.authService.usuario();
+    return u ? (u as any).nomeCompleto || 'Aluno' : 'Aluno';
+  }
 
   ngOnInit() {
-    this.cursosService.listar().subscribe({
-      next: (res) => {
-        this.cursos.set(res.content);
-        this.cursosFiltrados.set(res.content);
-        this.carregando.set(false);
+    this.carregarDados();
+  }
+
+  carregarDados(): void {
+    this.carregando.set(true);
+    this.erro.set(false);
+
+    this.alunoService.getProgresso().subscribe({
+      next: (data) => {
+        this.progresso.set(data);
+        this.carregarMatriculas();
       },
       error: () => {
         this.erro.set(true);
         this.carregando.set(false);
       }
     });
+
+    this.gamificacaoService.getMoedas().subscribe({
+      next: (data) => this.saldoMoedas.set(data.saldo),
+      error: () => {}
+    });
   }
 
-  setFiltro(categoria: string) {
-    this.filtroAtivo = categoria;
-    this.filtrar();
+  private carregarMatriculas(): void {
+    this.alunoService.getMatriculas().subscribe({
+      next: (data) => {
+        this.matriculas.set(data);
+        this.carregando.set(false);
+      },
+      error: () => {
+        this.carregando.set(false);
+      }
+    });
   }
 
-  filtrar() {
-    const lista = this.cursos();
-    this.cursosFiltrados.set(
-      lista.filter(c => {
-        const porCategoria = this.filtroAtivo === 'TODOS' || c.categoria === this.filtroAtivo;
-        const porBusca = !this.termoBusca || c.titulo.toLowerCase().includes(this.termoBusca.toLowerCase());
-        return porCategoria && porBusca;
-      })
-    );
+  mostrarUpgradeBanner(): boolean {
+    const p = this.progresso();
+    if (!p) return false;
+    return p.tipoPlano !== 'PREMIUM' && p.totalCursosConcluidos < 12;
   }
 
-  badgeClass(categoria: string): string {
-    const map: Record<string, string> = {
-      'Frontend': 'badge badge-frontend',
-      'Backend': 'badge badge-backend',
-      'Design': 'badge badge-design'
-    };
-    return map[categoria] ?? 'badge badge-default';
-  }
-
-  nivelLabel(nivel: string): string {
-    const map: Record<string, string> = {
-      'INICIANTE': 'Iniciante',
-      'INTERMEDIARIO': 'Intermediário',
-      'AVANCADO': 'Avançado'
-    };
-    return map[nivel] ?? nivel;
+  upgradePercentual(): number {
+    const p = this.progresso();
+    if (!p) return 0;
+    return Math.min(100, (p.totalCursosConcluidos / 12) * 100);
   }
 }

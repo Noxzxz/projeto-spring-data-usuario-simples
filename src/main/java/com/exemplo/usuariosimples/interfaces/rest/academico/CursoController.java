@@ -1,38 +1,47 @@
 package com.exemplo.usuariosimples.interfaces.rest.academico;
 
 import com.exemplo.usuariosimples.domain.academico.entity.Curso;
-import com.exemplo.usuariosimples.infrastructure.persistence.jpa.CursoJpaRepository;
+import com.exemplo.usuariosimples.domain.academico.enums.StatusCurso;
+import com.exemplo.usuariosimples.domain.academico.repository.CursoRepository;
+import com.exemplo.usuariosimples.interfaces.rest.academico.dto.CursoResponseDTO;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("Curso")
+@RequestMapping("/cursos")
 @CrossOrigin
 public class CursoController {
 
-    private final CursoJpaRepository repository;
+    private final CursoRepository repository;
 
-    public CursoController(CursoJpaRepository repository) {
+    public CursoController(CursoRepository repository) {
         this.repository = repository;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Curso criar(@RequestBody Curso Curso) {
-        return repository.save(Curso);
+    public Curso criar(@RequestBody Curso curso) {
+        return repository.save(curso);
     }
 
     @GetMapping
-    public List<Curso> listar() {
-        return repository.findAll();
+    public ResponseEntity<List<CursoResponseDTO>> listar() {
+        List<Curso> cursos = repository.findByStatus(StatusCurso.PUBLICADO);
+        List<CursoResponseDTO> dtos = cursos.stream()
+                .map(CursoResponseDTO::from)
+                .toList();
+        return ResponseEntity.ok(dtos);
     }
 
     @GetMapping("/{id}")
-    public Curso buscar(@PathVariable Long id) {
-        return repository.findById(id).orElse(null);
+    public ResponseEntity<CursoResponseDTO> buscar(@PathVariable Long id) {
+        return repository.findById(id)
+                .map(curso -> ResponseEntity.ok(CursoResponseDTO.from(curso)))
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
@@ -42,7 +51,7 @@ public class CursoController {
     }
 
     @PutMapping("/{id}")
-    public Curso atualizar(@PathVariable Long id, @RequestBody Curso nova) {
+    public ResponseEntity<CursoResponseDTO> atualizar(@PathVariable Long id, @RequestBody Curso nova) {
         return repository.findById(id)
                 .map(c -> {
                     c.setTituloCurso(nova.getTituloCurso());
@@ -52,8 +61,8 @@ public class CursoController {
                     c.setNivel(nova.getNivel());
                     c.setPublicoAlvo(nova.getPublicoAlvo());
                     c.setConhecimentosPrevios(nova.getConhecimentosPrevios());
-                    return repository.save(c);
+                    return ResponseEntity.ok(CursoResponseDTO.from(repository.save(c)));
                 })
-                .orElse(null);
+                .orElse(ResponseEntity.notFound().build());
     }
 }

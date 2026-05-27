@@ -20,7 +20,7 @@ export const instrutorGuard: CanActivateFn = () => {
   const router = inject(Router);
   const perfil = auth.getUserPerfil();
 
-  if (perfil === 'INSTRUTOR' || perfil === 'ADMIN') {
+  if (perfil === 'PROFESSOR' || perfil === 'INSTRUTOR' || perfil === 'ADMINISTRADOR' || perfil === 'ADMIN') {
     return true;
   }
 

@@ -70,7 +70,17 @@ public class DataInitializer implements CommandLineRunner {
         Aluno aluno = new Aluno(
                 new NomeCompleto("Aluno Demo"),
                 emailAluno, senha, true, null);
+        aluno.setTotalCursosConcluidos(11);
+        aluno.setSaldoCursosExtras(33);
         alunoRepository.save(aluno);
+
+        var emailDemoPremium = new Email("demo@teste.com");
+        Aluno demoAluno = new Aluno(
+                new NomeCompleto("Demo Premium"),
+                emailDemoPremium, senha, true, null);
+        demoAluno.setTotalCursosConcluidos(11);
+        demoAluno.setSaldoCursosExtras(33);
+        alunoRepository.save(demoAluno);
 
         Professor professor = new Professor(
                 new NomeCompleto("Professor Demo"),
@@ -86,7 +96,7 @@ public class DataInitializer implements CommandLineRunner {
         cursoRepository.save(criarCursoSpring());
         cursoRepository.save(criarCursoEngSoftware());
 
-        log.info("Seed concluido: 3 usuarios demo + 3 cursos");
+        log.info("Seed concluido: 4 usuarios demo + 3 cursos");
     }
 
     private Curso criarCursoJava() {
