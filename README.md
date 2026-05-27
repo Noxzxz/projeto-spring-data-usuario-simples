@@ -14,6 +14,15 @@ A aplicação modela uma plataforma de cursos online por assinatura com mecânic
 - Ao concluir **12 cursos**, o plano é promovido para **Premium**, desbloqueando:
     - Participação em projetos reais durante os cursos.
     - Recebimento de **3 moedas** por curso, que podem ser convertidas em novos cursos, acumuladas ou trocadas por criptomoeda.
+ 
+---
+
+## 📄 Documentação do Projeto
+
+As documentações exigidas para o projeto podem ser encontradas em:
+
+- [Documento Final](docs/Documentacao_Final.pdf)
+
 
 ---
 
