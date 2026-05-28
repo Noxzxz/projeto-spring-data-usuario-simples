@@ -22,6 +22,7 @@ A aplicação modela uma plataforma de cursos online por assinatura com mecânic
 As documentações exigidas para o projeto podem ser encontradas em:
 
 - [Documento Final](docs/Documentacao_Final.pdf)
+- [Roteiro do Projeto](docs/ProjetoEmGrupoPOOESPM_API_GamificationCase_v2.pdf)
 
 
 ---
